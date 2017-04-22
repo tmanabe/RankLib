@@ -86,7 +86,7 @@ public class BM25F extends CoorAscent {
             double[] bestWeight = new double[weight.length];
             copy(weight, bestWeight);
 
-            //There must be at least one feature increasing whose weight helps
+            //There must be at least one weight increasing it helps
             while((weight.length>1&&consecutive_fails < weight.length - 1) || (weight.length==1&&consecutive_fails==0))
             {
                 PRINT("Shuffling weights' order... ");
@@ -101,7 +101,7 @@ public class BM25F extends CoorAscent {
                 {
                     current_weight = wids[i];//this will trigger the "else" branch in the procedure rank()
 
-                    double origWeight = weight[wids[i]];
+                    double origWeight = weight[current_weight];
                     double bestWeightValue = origWeight;//0.0;
                     boolean succeeds = false;//whether or not we succeed in finding a better weight value for the current feature
                     for(int s=0;s<sign.length;s++)//search by both increasing and decreasing
@@ -113,8 +113,7 @@ public class BM25F extends CoorAscent {
                         for(int j=0;j<nMaxIteration;j++)
                         {
                             double w = origWeight + totalStep * sign[s];
-                            weight_change = w - weight[wids[i]];//weight_change is used in the "else" branch in the procedure rank()
-                            weight[wids[i]] = w;
+                            weight[current_weight] = w;
                             double score = scorer.score(rank(samples));
                             if(regularized)
                             {
@@ -125,11 +124,11 @@ public class BM25F extends CoorAscent {
                             if(score > bestScore)//better than the local best, replace the local best with this model
                             {
                                 bestScore = score;
-                                bestWeightValue = weight[wids[i]];
+                                bestWeightValue = weight[current_weight];
                                 succeeds = true;
 
                                 String bw = ((bestWeightValue>0.0)?"+":"") + SimpleMath.round(bestWeightValue, 4);
-                                PRINTLN(new int[]{9, 8, 7}, new String[]{wids[i]+"", bw+"", SimpleMath.round(bestScore, 4)+""});
+                                PRINTLN(new int[]{9, 8, 7}, new String[]{current_weight+"", bw+"", SimpleMath.round(bestScore, 4)+""});
                             }
                             step *= stepScale;
                             totalStep += step;
@@ -138,15 +137,13 @@ public class BM25F extends CoorAscent {
                             break;//no need to search the other direction (e.g. sign = '-')
                         else
                         {
-                            weight_change = origWeight - weight[wids[i]];
                             //so that we can start searching in the other direction (since the optimization in the first direction failed)
-                            weight[wids[i]] = origWeight;//restore the weight to its initial value
+                            weight[current_weight] = origWeight;//restore the weight to its initial value
                         }
                     }
                     if(succeeds)
                     {
-                        weight_change = bestWeightValue - weight[wids[i]];
-                        weight[wids[i]] = bestWeightValue;
+                        weight[current_weight] = bestWeightValue;
                         consecutive_fails = 0;//since we found a better weight value
                         //then normalize the new weight vector
                         double sum = normalize(weight);
@@ -156,9 +153,8 @@ public class BM25F extends CoorAscent {
                     else
                     {
                         consecutive_fails++;
-                        weight_change = origWeight - weight[wids[i]];
                         //Restore the orig. weight value
-                        weight[wids[i]] = origWeight;
+                        weight[current_weight] = origWeight;
                     }
                 }
                 PRINTLN("------------------------------");
