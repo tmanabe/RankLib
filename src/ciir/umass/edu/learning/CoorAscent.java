@@ -1,7 +1,7 @@
 /*===============================================================================
  * Copyright (c) 2010-2012 University of Massachusetts.  All Rights Reserved.
  *
- * Use of the RankLib package is subject to the terms of the software license set 
+ * Use of the RankLib package is subject to the terms of the software license set
  * forth in the LICENSE file included with this software, and also available at
  * http://people.cs.umass.edu/~vdang/ranklib_license.html
  *===============================================================================
@@ -23,7 +23,7 @@ import ciir.umass.edu.utilities.SimpleMath;
 
 /**
  * @author vdang
- * 
+ *
  * This class implements the linear ranking model known as Coordinate Ascent. It was proposed in this paper:
  *  D. Metzler and W.B. Croft. Linear feature-based models for information retrieval. Information Retrieval, 10(3): 257-274, 2000.
  */
@@ -37,22 +37,22 @@ public class CoorAscent extends Ranker {
 	public static double tolerance = 0.001;
 	public static boolean regularized = false;
 	public static double slack = 0.001;//regularized parameter
-	
+
 	//Local variables
-	protected double[] weight = null; 
-	
+	protected double[] weight = null;
+
 	protected int current_feature = -1;//used only during learning
 	protected double weight_change = -1.0;//used only during learning
-	
+
 	public CoorAscent()
 	{
-		
+
 	}
 	public CoorAscent(List<RankList> samples, int[] features)
 	{
 		super(samples, features);
 	}
-	
+
 	public void init()
 	{
 		PRINT("Initializing... ");
@@ -65,28 +65,28 @@ public class CoorAscent extends Ranker {
 	{
 		double[] regVector = new double[weight.length];
 		copy(weight, regVector);//uniform weight distribution
-		
+
 		//this holds the final best model/score
 		double[] bestModel = null;
 		double bestModelScore = 0.0;
-		
+
 		int[] sign = new int[]{1, -1};
-		
+
 		PRINTLN("---------------------------");
 		PRINTLN("Training starts...");
 		PRINTLN("---------------------------");
-		
+
 		for(int r=0;r<nRestart;r++)
 		{
 			PRINTLN("[+] Random restart #" + (r+1) + "/" + nRestart + "...");
 			int consecutive_fails = 0;
-			
+
 			//initialize weight vector
 			for(int i=0;i<weight.length;i++)
 				weight[i] = 1.0f/features.length;
 			current_feature = -1;
 			double startScore = scorer.score(rank(samples));//compute all the scores (in whatever metric specified) and store them as cache
-			
+
 			//local best (within the current restart cycle)
 			double bestScore = startScore;
 			double[] bestWeight = new double[weight.length];
@@ -106,7 +106,7 @@ public class CoorAscent extends Ranker {
 				for(int i=0;i<fids.length;i++)
 				{
 					current_feature = fids[i];//this will trigger the "else" branch in the procedure rank()
-					
+
 					double origWeight = weight[fids[i]];
 					double bestWeightValue = origWeight;//0.0;
 					boolean succeeds = false;//whether or not we succeed in finding a better weight value for the current feature
@@ -133,7 +133,7 @@ public class CoorAscent extends Ranker {
 								bestScore = score;
 								bestWeightValue = weight[fids[i]];
 								succeeds = true;
-								
+
 								String bw = ((bestWeightValue>0.0)?"+":"") + SimpleMath.round(bestWeightValue, 4);
 								PRINTLN(new int[]{7, 8, 7}, new String[]{features[fids[i]]+"", bw+"", SimpleMath.round(bestScore, 4)+""});
 							}
@@ -145,12 +145,12 @@ public class CoorAscent extends Ranker {
 						else
 						{
 							weight_change = origWeight - weight[fids[i]];
-							updateCached();//restore the cached to reflect the orig. weight for the current feature 
+							updateCached();//restore the cached to reflect the orig. weight for the current feature
 							//so that we can start searching in the other direction (since the optimization in the first direction failed)
 							weight[fids[i]] = origWeight;//restore the weight to its initial value
 						}
 					}
-					if(succeeds) 
+					if(succeeds)
 					{
 						weight_change = bestWeightValue - weight[fids[i]];
 						updateCached();//restore the cached to reflect the best weight for the current feature
@@ -170,7 +170,7 @@ public class CoorAscent extends Ranker {
 						weight[fids[i]] = origWeight;
 					}
 				}
-				PRINTLN("------------------------------");				
+				PRINTLN("------------------------------");
 				//if we haven't made much progress then quit
 				if(bestScore - startScore < tolerance)
 					break;
@@ -180,9 +180,9 @@ public class CoorAscent extends Ranker {
 			{
 				bestModelScore = bestScore;
 				bestModel = bestWeight;
-			}			
+			}
 		}
-		
+
 		copy(bestModel, weight);
 		current_feature = -1;//turn off the cache mode
 		scoreOnTrainingData = SimpleMath.round(scorer.score(rank(samples)), 4);
@@ -208,7 +208,7 @@ public class CoorAscent extends Ranker {
 				rl.get(i).setCached(score[i]);//use cache of a data point to store its score given the model at this state
 			}
 		}
-		else//This branch is only active during the training process. Here we trade the "clean" codes for efficiency 
+		else//This branch is only active during the training process. Here we trade the "clean" codes for efficiency
 		{
 			for(int i=0;i<rl.size();i++)
 			{
@@ -219,7 +219,7 @@ public class CoorAscent extends Ranker {
 				rl.get(i).setCached(score[i]);
 			}
 		}
-		int[] idx = MergeSorter.sort(score, false); 
+		int[] idx = MergeSorter.sort(score, false);
 		return new RankList(rl, idx);
 	}
 	public double eval(DataPoint p)
@@ -260,7 +260,7 @@ public class CoorAscent extends Ranker {
 			BufferedReader in = new BufferedReader(
 					new InputStreamReader(
 							new FileInputStream(fn), "ASCII"));
-			
+
 			KeyValuePair kvp = null;
 			while((content = in.readLine()) != null)
 			{
@@ -273,7 +273,7 @@ public class CoorAscent extends Ranker {
 				break;
 			}
 			in.close();
-			
+
 			List<String> keys = kvp.keys();
 			List<String> values = kvp.values();
 			weight = new double[keys.size()];
@@ -303,8 +303,8 @@ public class CoorAscent extends Ranker {
 	{
 		return "Coordinate Ascent";
 	}
-	
-	private void updateCached()
+
+	protected void updateCached()
 	{
 		for(int j=0;j<samples.size();j++)
 		{
@@ -319,7 +319,7 @@ public class CoorAscent extends Ranker {
 			}
 		}
 	}
-	private void scaleCached(double sum)
+	protected void scaleCached(double sum)
 	{
 		for(int j=0;j<samples.size();j++)
 		{
@@ -328,7 +328,7 @@ public class CoorAscent extends Ranker {
 				rl.get(i).setCached(rl.get(i).getCached()/sum);
 		}
 	}
-	private int[] getShuffledFeatures()
+	protected int[] getShuffledFeatures()
 	{
 		int[] fids = new int[features.length];
 		List<Integer> l = new ArrayList<Integer>();
@@ -339,7 +339,7 @@ public class CoorAscent extends Ranker {
 			fids[i] = l.get(i);
 		return fids;
 	}
-	private double getDistance(double[] w1, double[] w2)
+	protected double getDistance(double[] w1, double[] w2)
 	{
 		//ASSERT w1.length = w2.length
 		double s1 = 0.0;
@@ -357,7 +357,7 @@ public class CoorAscent extends Ranker {
 		}
 		return (double)Math.sqrt(dist);
 	}
-	private double normalize(double[] weights)
+	protected double normalize(double[] weights)
 	{
 		double sum = 0.0;
 		for(int j=0;j<weights.length;j++)
