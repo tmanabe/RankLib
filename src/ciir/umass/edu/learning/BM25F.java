@@ -50,14 +50,24 @@ public class BM25F extends CoorAscent {
             weight[i] = 1.0f;
 		PRINTLN("[Done]");
 	}
+	public String weightNameOf(int weight_index)
+    {
+        if(weight_index <= 0) {
+            return "k1";
+        } else if(weight_index <= f) {
+            return "b(" + weight_index +")";
+        } else {
+            return "boost(" + (weight_index - f) + ")";
+        }
+    }
     public void learn()
     {
         double[] regVector = new double[weight.length];
         copy(weight, regVector);
 
         //this holds the final best model/score
-        double[] bestModel = null;
-        double bestModelScore = 0.0;
+        double[] bestModel = new double[weight.length];
+        double bestModelScore = Double.NEGATIVE_INFINITY;
 
         int[] sign = new int[]{1, -1};
 
@@ -92,7 +102,7 @@ public class BM25F extends CoorAscent {
                 PRINTLN("[Done.]");
                 PRINTLN("Optimizing weight vector... ");
                 PRINTLN("------------------------------");
-                PRINTLN(new int[]{9, 8, 7}, new String[]{"weight ID", "value", scorer.name()});
+                PRINTLN(new int[]{11, 8, 7}, new String[]{"weight name", "value", scorer.name()});
                 PRINTLN("------------------------------");
                 //Try maximizing each feature individually
                 for(int i=0;i<wids.length;i++)
@@ -126,7 +136,7 @@ public class BM25F extends CoorAscent {
                                 succeeds = true;
 
                                 String bw = ((bestWeightValue>0.0)?"+":"") + SimpleMath.round(bestWeightValue, 4);
-                                PRINTLN(new int[]{9, 8, 7}, new String[]{current_weight+"", bw+"", SimpleMath.round(bestScore, 4)+""});
+                                PRINTLN(new int[]{11, 8, 7}, new String[]{weightNameOf(current_weight), bw+"", SimpleMath.round(bestScore, 4)+""});
                             }
                             step *= stepScale;
                             totalStep += step;
@@ -144,7 +154,6 @@ public class BM25F extends CoorAscent {
                         weight[current_weight] = bestWeightValue;
                         consecutive_fails = 0;//since we found a better weight value
                         //then normalize the new weight vector
-                        double sum = normalize(weight);
                         copy(weight, bestWeight);
                     }
                     else
@@ -160,10 +169,10 @@ public class BM25F extends CoorAscent {
                     break;
             }
             //update the (global) best model with the best model found in this round
-            if(bestModel == null || bestScore > bestModelScore)
+            if(bestScore > bestModelScore)
             {
                 bestModelScore = bestScore;
-                bestModel = bestWeight;
+                copy(bestWeight, bestModel);
             }
         }
 
