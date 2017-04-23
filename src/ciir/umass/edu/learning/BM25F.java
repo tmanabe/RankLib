@@ -108,6 +108,7 @@ public class BM25F extends CoorAscent {
                 for(int i=0;i<wids.length;i++)
                 {
                     current_weight = wids[i];//this will trigger the "else" branch in the procedure rank()
+                    String weightName = weightNameOf(current_weight);
 
                     double origWeight = weight[current_weight];
                     double bestWeightValue = origWeight;//0.0;
@@ -121,6 +122,13 @@ public class BM25F extends CoorAscent {
                         for(int j=0;j<nMaxIteration;j++)
                         {
                             double w = origWeight + totalStep * sign[s];
+
+                            if(current_weight <= 0 && w <= 0) {  // k1
+                                break;
+                            } else if(current_weight <= f && (w < 0 || 1.0d < w)) {  // b
+                                break;
+                            }
+
                             weight[current_weight] = w;
                             double score = scorer.score(rank(samples));
                             if(regularized)
@@ -136,7 +144,7 @@ public class BM25F extends CoorAscent {
                                 succeeds = true;
 
                                 String bw = ((bestWeightValue>0.0)?"+":"") + SimpleMath.round(bestWeightValue, 4);
-                                PRINTLN(new int[]{11, 8, 7}, new String[]{weightNameOf(current_weight), bw+"", SimpleMath.round(bestScore, 4)+""});
+                                PRINTLN(new int[]{11, 8, 7}, new String[]{weightName, bw+"", SimpleMath.round(bestScore, 4)+""});
                             }
                             step *= stepScale;
                             totalStep += step;
