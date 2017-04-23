@@ -1,8 +1,6 @@
 package ciir.umass.edu.learning;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
+import java.util.*;
 
 import ciir.umass.edu.utilities.MergeSorter;
 import ciir.umass.edu.utilities.SimpleMath;
@@ -147,7 +145,6 @@ public class BM25F extends CoorAscent {
                         consecutive_fails = 0;//since we found a better weight value
                         //then normalize the new weight vector
                         double sum = normalize(weight);
-                        scaleCached(sum);
                         copy(weight, bestWeight);
                     }
                     else
@@ -186,8 +183,28 @@ public class BM25F extends CoorAscent {
 	public RankList rank(RankList rl)
 	{
 		double[] score = new double[rl.size()];
-        for(int i=0;i<rl.size();i++)
-            score[i] = eval(rl.get(i));
+        Map<String, Double> descToBestScore = new HashMap<>();
+        Map<String, Integer> descToBestIndex = new HashMap<>();
+        for(int index=0;index<rl.size();index++) {
+            DataPoint dp = rl.get(index);
+            String desc = dp.description;
+            Double current = eval(dp);
+            Double best = descToBestScore.get(desc);
+            if(best == null) {
+                descToBestScore.put(desc, current);
+                descToBestIndex.put(desc, index);
+                score[index] = current;
+            } else {
+                if(best < current) {
+                    score[descToBestIndex.get(desc)] = Double.NEGATIVE_INFINITY;
+                    descToBestScore.put(desc, current);
+                    descToBestIndex.put(desc, index);
+                    score[index] = current;
+                } else {
+                    score[index] = Double.NEGATIVE_INFINITY;
+                }
+            }
+        }
 		int[] idx = MergeSorter.sort(score, false);
 		return new RankList(rl, idx);
 	}

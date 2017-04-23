@@ -1,7 +1,7 @@
 /*===============================================================================
  * Copyright (c) 2010-2012 University of Massachusetts.  All Rights Reserved.
  *
- * Use of the RankLib package is subject to the terms of the software license set 
+ * Use of the RankLib package is subject to the terms of the software license set
  * forth in the LICENSE file included with this software, and also available at
  * http://people.cs.umass.edu/~vdang/ranklib_license.html
  *===============================================================================
@@ -14,7 +14,7 @@ import java.util.List;
 import java.util.Random;
 
 /**
- * 
+ *
  * @author vdang
  *
  */
@@ -35,7 +35,7 @@ public class MergeSorter {
 		for(int i=0;i<idx.length;i++)
 			System.out.print(list.get(idx[i]) + " ");
 	}
-	
+
 	public static int[] sort(List<Float> list, boolean asc)
 	{
 		float[] values = new float[list.size()];
@@ -58,19 +58,19 @@ public class MergeSorter {
 	{
 		if(idx.length == 1)
 			return idx;
-		
-		int mid = idx.length / 2;		
+
+		int mid = idx.length / 2;
 		int[] left = new int[mid];
 		int[] right = new int[idx.length-mid];
-		
+
 		for(int i=0;i<mid;i++)
 			left[i] = idx[i];
 		for(int i=mid;i<idx.length;i++)
 			right[i-mid] = idx[i];
-		
+
 		left = sort(list, left, asc);
 		right = sort(list, right, asc);
-		
+
 		return merge(list, left, right, asc);
 	}
 	private static int[] merge(float[] list, int[] left, int[] right, boolean asc)
@@ -114,20 +114,30 @@ public class MergeSorter {
 	{
 		if(idx.length == 1)
 			return idx;
-		
-		int mid = idx.length / 2;		
+
+		int mid = idx.length / 2;
 		int[] left = new int[mid];
 		int[] right = new int[idx.length-mid];
-		
+
 		for(int i=0;i<mid;i++)
 			left[i] = idx[i];
 		for(int i=mid;i<idx.length;i++)
 			right[i-mid] = idx[i];
-		
+
 		left = sort(list, left, asc);
 		right = sort(list, right, asc);
-		
-		return merge(list, left, right, asc);
+
+		int[] intermediate = merge(list, left, right, asc);
+		if(asc) {
+		    return intermediate;
+        } else {
+            int i = 0;
+            for(; i<intermediate.length; i++)
+                if(list[intermediate[i]] <= Double.NEGATIVE_INFINITY) break;
+            int[] result = new int[i];
+            System.arraycopy(intermediate, 0, result, 0, i);
+            return result;
+        }
 	}
 	private static int[] merge(double[] list, int[] left, int[] right, boolean asc)
 	{
