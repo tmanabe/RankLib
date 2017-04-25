@@ -112,8 +112,13 @@ public class MergeSorter {
 	}
 	public static int[] sort(double[] list, int[] idx, boolean asc)
 	{
-		if(idx.length == 1)
-			return idx;
+		if(idx.length == 1) {
+			if(Double.isFinite(idx[0])) {
+				return idx;
+			} else {
+				return new int[0];
+			}
+		}
 
 		int mid = idx.length / 2;
 		int[] left = new int[mid];
@@ -127,17 +132,7 @@ public class MergeSorter {
 		left = sort(list, left, asc);
 		right = sort(list, right, asc);
 
-		int[] intermediate = merge(list, left, right, asc);
-		if(asc) {
-		    return intermediate;
-        } else {
-            int i = 0;
-            for(; i<intermediate.length; i++)
-                if(list[intermediate[i]] <= Double.NEGATIVE_INFINITY) break;
-            int[] result = new int[i];
-            System.arraycopy(intermediate, 0, result, 0, i);
-            return result;
-        }
+		return merge(list, left, right, asc);
 	}
 	private static int[] merge(double[] list, int[] left, int[] right, boolean asc)
 	{
