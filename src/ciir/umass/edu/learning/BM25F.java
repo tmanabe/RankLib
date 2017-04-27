@@ -232,11 +232,11 @@ public class BM25F extends CoorAscent {
         for(int i=1; i<=k; i++) {
             double w = 0;
             for(int j=1; j<=f; j++) {
-                double numer = p.getFeatureValue(k*j+i) * weight[f+j];
-                double denom = 1 - weight[j] + weight[j] * p.getFeatureValue(k*j);
+                double numer = p.getFeatureValue(features[k*j+i]) * weight[f+j];
+                double denom = 1 - weight[j] + weight[j] * p.getFeatureValue(features[k*j]);
                 if(0 < denom) w += numer / denom;
             }
-            score += w / (w + weight[0]) * p.getFeatureValue(k);
+            score += w / (w + weight[0]) * p.getFeatureValue(features[k]);
         }
 		return score;
 	}
