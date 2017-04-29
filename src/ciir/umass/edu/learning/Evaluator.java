@@ -60,7 +60,7 @@ public class Evaluator {
 		int foldCV = -1;
 		String validationFile = "";
 		String testFile = "";
-		int rankerType = 4;
+		int rankerType = 9;
 		String trainMetric = "MAPIA";
 		String testMetric = "";
 		Evaluator.normalize = false;
