@@ -15,20 +15,26 @@ import ciir.umass.edu.utilities.SimpleMath;
  * H(i) entropy of i-th keyword, and lp(j) length penalty of j-th field.
  * [k,     H(1),     H(2),     H(3),     ..., H(k),
  *  lp(1), tf(1, 1), tf(2, 1), tf(3, 1), ..., tf(k, 1),
- *  lp(2), tf(1, 2), tf(2, 2), tf(3, 2), ..., tf(k, 1),
- *  lp(3), tf(1, 3), tf(2, 3), tf(3, 3), ..., tf(k, 1),
+ *  lp(2), tf(1, 2), tf(2, 2), tf(3, 2), ..., tf(k, 2),
+ *  lp(3), tf(1, 3), tf(2, 3), tf(3, 3), ..., tf(k, 3),
  *  ...
  *  lp(f), tf(1, f), tf(2, f), tf(3, f), ..., tf(k, f)]
- * Note that lp(j) is the (k*j)-th element, and
- * also that tf(i, j) is the (k*j+i)-th.
+ * Note that H(i) is the (i+1)-th feature,
+ * lp(j) the ((k+1)j+1)-th, and tf(i, j) the ((k+1)j+i+1)-th.
  */
 public class BM25F extends CoorAscent {
 
 	//Local variables
     protected int f;
 
-    protected int current_weight = -1;//used only during learning
+    BM25F()
+    {
 
+    }
+    BM25F(List<RankList> samples, int[] features)
+    {
+        super(samples, features);
+    }
 	public void init()
     {
 		PRINT("Initializing... ");
@@ -45,12 +51,12 @@ public class BM25F extends CoorAscent {
         // Note that b(j) is the j-th element and also that boost(j) is the (f+j)-th.
         weight[0] = 1.2;
         for(int i=1;i<=f;i++)
-            weight[i] = 0.75f;
+            weight[i] = 0.75;
         for(int i=f+1;i<weight.length;i++)
-            weight[i] = 1.0f;
+            weight[i] = 1.0;
 		PRINTLN("[Done]");
 	}
-	public String weightNameOf(int weight_index)
+	String weightNameOf(int weight_index)
     {
         if(weight_index <= 0) {
             return "k1";
@@ -86,7 +92,6 @@ public class BM25F extends CoorAscent {
                 weight[i] = 0.75f;
             for(int i=f+1;i<weight.length;i++)
                 weight[i] = 1.0f;
-            current_weight = -1;
             double startScore = scorer.score(rank(samples));//compute all the scores (in whatever metric specified) and store them as cache
 
             //local best (within the current restart cycle)
@@ -105,15 +110,14 @@ public class BM25F extends CoorAscent {
                 PRINTLN(new int[]{11, 8, 7}, new String[]{"weight name", "value", scorer.name()});
                 PRINTLN("------------------------------");
                 //Try maximizing each feature individually
-                for(int i=0;i<wids.length;i++)
+                for(int current_weight : wids)
                 {
-                    current_weight = wids[i];//this will trigger the "else" branch in the procedure rank()
                     String weightName = weightNameOf(current_weight);
 
                     double origWeight = weight[current_weight];
                     double bestWeightValue = origWeight;//0.0;
                     boolean succeeds = false;//whether or not we succeed in finding a better weight value for the current feature
-                    for(int s=0;s<sign.length;s++)//search by both increasing and decreasing
+                    for(int s : sign)
                     {
                         double step = 0.001;
                         if(origWeight != 0.0 && step > 0.5 * Math.abs(origWeight))
@@ -121,7 +125,7 @@ public class BM25F extends CoorAscent {
                         double totalStep = step;
                         for(int j=0;j<nMaxIteration;j++)
                         {
-                            double w = origWeight + totalStep * sign[s];
+                            double w = origWeight + totalStep * s;
 
                             if(current_weight <= 0 && w <= 0) {  // k1
                                 break;
@@ -227,31 +231,32 @@ public class BM25F extends CoorAscent {
 	}
 	public double eval(DataPoint p)
     {
-        int k = (int)p.getFeatureValue(features[0]);
+        int k = (int)p.getFeatureValue(1);
 		double score = 0.0;
         for(int i=1; i<=k; i++) {
-            double w = 0;
+            double w = 0.0;
             for(int j=1; j<=f; j++) {
-                double numer = p.getFeatureValue(features[k*j+i]) * weight[f+j];
-                double denom = 1 - weight[j] + weight[j] * p.getFeatureValue(features[k*j]);
-                if(0 < denom) w += numer / denom;
+                double numer = p.getFeatureValue((k+1)*j+i+1) * weight[f+j];
+                double denom = 1.0 - weight[j] + weight[j] * p.getFeatureValue((k+1)*j+1);
+                if(0.0 < denom) w += numer / denom;
             }
-            score += w / (w + weight[0]) * p.getFeatureValue(features[k]);
+            score += w / (w + weight[0]) * p.getFeatureValue(i+1);
         }
-		return score;
+ 		return score;
 	}
 	public Ranker clone()
 	{
-		return new BM25F();
+	    super.clone();
+	    return new BM25F();
 	}
 	public String name()
 	{
 		return "BM25F";
 	}
-    protected int[] getShuffledWeights()
+    public int[] getShuffledWeights()
     {
         int[] wids = new int[weight.length];
-        List<Integer> l = new ArrayList<Integer>();
+        List<Integer> l = new ArrayList<>();
         for(int i=0;i<weight.length;i++)
             l.add(i);
         Collections.shuffle(l);
@@ -259,8 +264,4 @@ public class BM25F extends CoorAscent {
             wids[i] = l.get(i);
         return wids;
     }
-	public double distance(BM25F ca)
-	{
-		return getDistance(weight, ca.weight);
-	}
 }

@@ -113,7 +113,7 @@ public class MergeSorter {
 	public static int[] sort(double[] list, int[] idx, boolean asc)
 	{
 		if(idx.length == 1) {
-			if(Double.isFinite(idx[0])) {
+			if(Double.isFinite(list[idx[0]])) {
 				return idx;
 			} else {
 				return new int[0];
