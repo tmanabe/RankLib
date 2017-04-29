@@ -28,9 +28,10 @@ public class APIAScorer extends MetricScorer {
                     ap += ((double) c) / r;
                 }
             }
-            cap += ap / c;
+            if(0 < c)
+                cap += ap / c;
         }
-        if(0.0 < cc)
+        if(0 < cc)
             return cap / cc;
         return 0.0;
     }
