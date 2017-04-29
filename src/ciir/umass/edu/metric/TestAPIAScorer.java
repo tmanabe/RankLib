@@ -4,6 +4,9 @@ import ciir.umass.edu.learning.DataPoint;
 import ciir.umass.edu.learning.RankList;
 import org.junit.Test;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import static org.junit.Assert.assertEquals;
 
 public class TestAPIAScorer{
@@ -56,6 +59,25 @@ public class TestAPIAScorer{
         rl0.add(new DataPoint("3,2,0 qid:0 1:1"));
         float expect = (0.805556f + 0.416667f + 1.000000f) / 3;
         assertEquals(expect, apias.score(rl0), 1.0e-6);
+    }
+    @Test
+    public void testScore_mean() {
+        APIAScorer apias = new APIAScorer();
+        List<RankList> rls = new ArrayList<>();
+        RankList rl0 = new RankList();
+        rl0.add(new DataPoint("2 qid:0 1:1"));
+        rl0.add(new DataPoint("0 qid:0 1:1"));
+        rl0.add(new DataPoint("1 qid:0 1:1"));
+        rl0.add(new DataPoint("3 qid:0 1:1"));
+        rls.add(rl0);
+        RankList rl1 = new RankList();
+        rl1.add(new DataPoint("2,0,2 qid:0 1:1"));
+        rl1.add(new DataPoint("0,0,1 qid:0 1:1"));
+        rl1.add(new DataPoint("1,1,0 qid:0 1:1"));
+        rl1.add(new DataPoint("3,2,0 qid:0 1:1"));
+        rls.add(rl1);
+        float expect = 0.805556f / 2 + (0.805556f + 0.416667f + 1.000000f) / 6;
+        assertEquals(expect, apias.score(rls), 1.0e-6);
     }
     @Test
     public void testName() {
