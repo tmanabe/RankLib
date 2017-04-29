@@ -23,6 +23,7 @@ public class DataPoint {
 	public static int FEATURE_INCREASE = 10;
 	
 	public static int featureCount = 0;
+	public int lastFeature = -1;
 	
 	protected float label = 0.0f;//[ground truth] the real label of the data point (e.g. its degree of relevance according to the relevance judgment)
 	protected String id = "";//id of this datapoint (e.g. document-id, query-id, etc)
@@ -48,7 +49,6 @@ public class DataPoint {
 	{
 		fVals = new float[MAX_FEATURE];
 		Arrays.fill(fVals, INFINITY);
-		int lastFeature = -1;
 		try {
 			int idx = text.lastIndexOf("#");
 			if(idx != -1)
@@ -121,10 +121,14 @@ public class DataPoint {
 	{
 		fVals[fid] = fval;
 	}
-	
+
 	public int getFeatureCount()
 	{
 		return featureCount;
+	}
+	public int getLastFeature()
+	{
+		return lastFeature;
 	}
 	public float[] getFeatureVector(int[] featureID)
 	{

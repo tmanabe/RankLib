@@ -1,7 +1,7 @@
 /*===============================================================================
  * Copyright (c) 2010-2012 University of Massachusetts.  All Rights Reserved.
  *
- * Use of the RankLib package is subject to the terms of the software license set 
+ * Use of the RankLib package is subject to the terms of the software license set
  * forth in the LICENSE file included with this software, and also available at
  * http://people.cs.umass.edu/~vdang/ranklib_license.html
  *===============================================================================
@@ -27,14 +27,14 @@ import ciir.umass.edu.utilities.FileUtils;
 
 /**
  * @author vdang
- * 
- * This class implements the Ranker factory. All ranking algorithms implemented have to be recognized in this class. 
+ *
+ * This class implements the Ranker factory. All ranking algorithms implemented have to be recognized in this class.
  */
 public class RankerFactory {
 
-	protected Ranker[] rFactory = new Ranker[]{new MART(), new RankBoost(), new RankNet(), new AdaRank(), new CoorAscent(), new LambdaRank(), new LambdaMART(), new ListNet(), new RFRanker()};
+	protected Ranker[] rFactory = new Ranker[]{new MART(), new RankBoost(), new RankNet(), new AdaRank(), new CoorAscent(), new LambdaRank(), new LambdaMART(), new ListNet(), new RFRanker(), new BM25F()};
 	protected static Hashtable<String, RANKER_TYPE> map = new Hashtable<String, RANKER_TYPE>();
-	
+
 	public RankerFactory()
 	{
 		map.put(createRanker(RANKER_TYPE.MART).name().toUpperCase(), RANKER_TYPE.MART);
@@ -46,8 +46,9 @@ public class RankerFactory {
 		map.put(createRanker(RANKER_TYPE.LAMBDAMART).name().toUpperCase(), RANKER_TYPE.LAMBDAMART);
 		map.put(createRanker(RANKER_TYPE.LISTNET).name().toUpperCase(), RANKER_TYPE.LISTNET);
 		map.put(createRanker(RANKER_TYPE.RANDOM_FOREST).name().toUpperCase(), RANKER_TYPE.RANDOM_FOREST);
+		map.put(createRanker(RANKER_TYPE.BM25F).name().toUpperCase(), RANKER_TYPE.BM25F);
 	}
-	
+
 	public Ranker createRanker(RANKER_TYPE type)
 	{
 		Ranker r = rFactory[type.ordinal() - RANKER_TYPE.MART.ordinal()].clone();
