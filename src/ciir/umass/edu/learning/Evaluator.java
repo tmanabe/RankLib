@@ -60,8 +60,8 @@ public class Evaluator {
 		int foldCV = -1;
 		String validationFile = "";
 		String testFile = "";
-		int rankerType = 4;
-		String trainMetric = "ERR@10";
+		int rankerType = 9;
+		String trainMetric = "MAPIA";
 		String testMetric = "";
 		Evaluator.normalize = false;
 		String savedModelFile = "";
@@ -91,7 +91,7 @@ public class Evaluator {
 			System.out.println("\t[ -feature <file> ]\tFeature description file: list features to be considered by the learner, each on a separate line");
 			System.out.println("\t\t\t\tIf not specified, all features will be used.");
 			//System.out.println("\t[ -metric2t <metric> ]\tMetric to optimize on the training data. Supported: MAP, NDCG@k, DCG@k, P@k, RR@k, BEST@k, ERR@k (default=" + trainMetric + ")");
-			System.out.println("\t[ -metric2t <metric> ]\tMetric to optimize on the training data. Supported: MAP, NDCG@k, DCG@k, P@k, RR@k, ERR@k (default=" + trainMetric + ")");
+			System.out.println("\t[ -metric2t <metric> ]\tMetric to optimize on the training data. Supported: MAP, NDCG@k, DCG@k, P@k, RR@k, ERR@k, MAPIA (default=" + trainMetric + ")");
 			System.out.println("\t[ -metric2T <metric> ]\tMetric to evaluate on the test data (default to the same as specified for -metric2t)");
 			System.out.println("\t[ -gmax <label> ]\tHighest judged relevance label. It affects the calculation of ERR (default=" + (int)SimpleMath.logBase2(ERRScorer.MAX) + ", i.e. 5-point scale {0,1,2,3,4})");
 			//System.out.println("\t[ -qrel <file> ]\tTREC-style relevance judgment file. It only affects MAP and NDCG (default=unspecified)");

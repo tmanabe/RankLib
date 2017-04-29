@@ -28,6 +28,7 @@ public class MetricScorerFactory {
 		map.put("RR", new ReciprocalRankScorer());
 		map.put("BEST", new BestAtKScorer());
 		map.put("ERR", new ERRScorer());
+		map.put("MAPIA", new APIAScorer());
 	}
 	public MetricScorer createScorer(METRIC metric)
 	{

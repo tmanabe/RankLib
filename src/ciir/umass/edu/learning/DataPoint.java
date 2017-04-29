@@ -26,6 +26,7 @@ public class DataPoint {
 	public int lastFeature = -1;
 	
 	protected float label = 0.0f;//[ground truth] the real label of the data point (e.g. its degree of relevance according to the relevance judgment)
+	protected float[] labels;
 	protected String id = "";//id of this datapoint (e.g. document-id, query-id, etc)
 	protected float[] fVals = null;//fVals[0] is un-used. Feature id MUST start from 1
 	protected String description = "";
@@ -57,7 +58,11 @@ public class DataPoint {
 				text = text.substring(0, idx).trim();//remove the comment part at the end of the line
 			}
 			String[] fs = text.split(" ");
-			label = Float.parseFloat(fs[0]);
+			String[] ls = fs[0].split(",");
+			labels = new float[ls.length];
+			for(int i = 0; i < ls.length; i++)
+				labels[i] = Float.parseFloat(ls[i]);
+			label = labels[0];
 			id = getValue(fs[1]);
 			String key = "";
 			String val = "";
@@ -104,9 +109,13 @@ public class DataPoint {
 	{
 		return label;
 	}
+	public float[] getLabels() { return labels; }
 	public void setLabel(float label)
 	{
 		this.label = label;
+		if(this.labels == null)
+			this.labels = new float[1];
+		this.labels[0] = label;
 	}
 
 	public float getFeatureValue(int fid)

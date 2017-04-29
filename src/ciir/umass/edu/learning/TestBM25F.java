@@ -1,5 +1,6 @@
 package ciir.umass.edu.learning;
 
+import ciir.umass.edu.metric.APIAScorer;
 import ciir.umass.edu.metric.NDCGScorer;
 import org.junit.Test;
 
@@ -110,7 +111,7 @@ public class TestBM25F {
                 return new int[]{0, 1, 2};
             }
         };
-        bm25f.set(new NDCGScorer());
+        bm25f.set(new APIAScorer());
         bm25f.init();
         bm25f.learn();
         assertTrue(bm25f.weight[0] < 1.2);
@@ -141,7 +142,7 @@ public class TestBM25F {
                 return new int[]{2, 0, 1};
             }
         };
-        bm25f.set(new NDCGScorer());
+        bm25f.set(new APIAScorer());
         bm25f.init();
         bm25f.learn();
         assertTrue(1.0 < bm25f.weight[2]);
@@ -172,7 +173,7 @@ public class TestBM25F {
                 return new int[]{1, 2, 0};
             }
         };
-        bm25f.set(new NDCGScorer());
+        bm25f.set(new APIAScorer());
         bm25f.init();
         bm25f.learn();
         assertTrue(0.75 < bm25f.weight[1]);
