@@ -25,7 +25,8 @@
     <!-- Compile the java code from ${src} into ${build} -->
     <javac srcdir="${src}"
            destdir="${build}"
-           excludes="**/Test*">
+           excludes="**/Test*"
+           includeantruntime="false">
            <classpath refid="compile.classpath"/>
     </javac>
   </target>
