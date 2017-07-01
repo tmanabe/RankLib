@@ -47,6 +47,7 @@ public class RankerFactory {
 		map.put(createRanker(RANKER_TYPE.LISTNET).name().toUpperCase(), RANKER_TYPE.LISTNET);
 		map.put(createRanker(RANKER_TYPE.RANDOM_FOREST).name().toUpperCase(), RANKER_TYPE.RANDOM_FOREST);
 		map.put(createRanker(RANKER_TYPE.BM25F).name().toUpperCase(), RANKER_TYPE.BM25F);
+		map.put(createRanker(RANKER_TYPE.SPANF).name().toUpperCase(), RANKER_TYPE.SPANF);
 	}
 
 	public Ranker createRanker(RANKER_TYPE type)

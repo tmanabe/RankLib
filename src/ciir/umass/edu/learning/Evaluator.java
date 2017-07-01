@@ -50,7 +50,19 @@ public class Evaluator {
 	 */
 	public static void main(String[] args) {
 		
-		String[] rType = new String[]{"MART", "RankNet", "RankBoost", "AdaRank", "Coordinate Ascent", "LambdaRank", "LambdaMART", "ListNet", "Random Forests", "BM25F"};
+		String[] rType = new String[]{
+				"MART",
+				"RankNet",
+				"RankBoost",
+				"AdaRank",
+				"Coordinate Ascent",
+				"LambdaRank",
+				"LambdaMART",
+				"ListNet",
+				"Random Forests",
+				"BM25F",
+				"SpanF",
+		};
 		RANKER_TYPE[] rType2 = new RANKER_TYPE[]{RANKER_TYPE.MART, RANKER_TYPE.RANKNET, RANKER_TYPE.RANKBOOST, RANKER_TYPE.ADARANK, RANKER_TYPE.COOR_ASCENT, RANKER_TYPE.LAMBDARANK, RANKER_TYPE.LAMBDAMART, RANKER_TYPE.LISTNET, RANKER_TYPE.RANDOM_FOREST, RANKER_TYPE.BM25F};
 		
 		String trainFile = "";
@@ -79,15 +91,16 @@ public class Evaluator {
 			System.out.println("  [+] Training (+ tuning and evaluation)");
 			System.out.println("\t-train <file>\t\tTraining data");
 			System.out.println("\t-ranker <type>\t\tSpecify which ranking algorithm to use");
-			System.out.println("\t\t\t\t0: MART (gradient boosted regression tree)");
-			System.out.println("\t\t\t\t1: RankNet");
-			System.out.println("\t\t\t\t2: RankBoost");
-			System.out.println("\t\t\t\t3: AdaRank");
-			System.out.println("\t\t\t\t4: Coordinate Ascent");
-			System.out.println("\t\t\t\t6: LambdaMART");
-			System.out.println("\t\t\t\t7: ListNet");
-			System.out.println("\t\t\t\t8: Random Forests");
-			System.out.println("\t\t\t\t9: BM25F");
+			System.out.println("\t\t\t\t0:  MART (gradient boosted regression tree)");
+			System.out.println("\t\t\t\t1:  RankNet");
+			System.out.println("\t\t\t\t2:  RankBoost");
+			System.out.println("\t\t\t\t3:  AdaRank");
+			System.out.println("\t\t\t\t4:  Coordinate Ascent");
+			System.out.println("\t\t\t\t6:  LambdaMART");
+			System.out.println("\t\t\t\t7:  ListNet");
+			System.out.println("\t\t\t\t8:  Random Forests");
+			System.out.println("\t\t\t\t9:  BM25F");
+			System.out.println("\t\t\t\t10: SpanF");
 			System.out.println("\t[ -feature <file> ]\tFeature description file: list features to be considered by the learner, each on a separate line");
 			System.out.println("\t\t\t\tIf not specified, all features will be used.");
 			//System.out.println("\t[ -metric2t <metric> ]\tMetric to optimize on the training data. Supported: MAP, NDCG@k, DCG@k, P@k, RR@k, BEST@k, ERR@k (default=" + trainMetric + ")");
@@ -131,7 +144,7 @@ public class Evaluator {
 			System.out.println("\t[ -max <times> ]\tThe maximum number of times can a feature be consecutively selected without changing performance (default=" + AdaRank.maxSelCount + ")");
 
 			System.out.println("");
-			System.out.println("    [-] Coordinate Ascent- and BM25F- specific parameters");
+			System.out.println("    [-] Coordinate Ascent-, BM25F-, and SpanF-specific parameters");
 			System.out.println("\t[ -r <k> ]\t\tThe number of random restarts (default=" + CoorAscent.nRestart + ")");
 			System.out.println("\t[ -i <iteration> ]\tThe number of iterations to search in each dimension (default=" + CoorAscent.nMaxIteration + ")");
 			System.out.println("\t[ -tolerance <t> ]\tPerformance tolerance between two solutions (default=" + CoorAscent.tolerance + ")");
