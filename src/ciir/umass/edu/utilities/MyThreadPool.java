@@ -34,6 +34,8 @@ public class MyThreadPool extends ThreadPoolExecutor {
 	private static MyThreadPool singleton = null;
 	public static MyThreadPool getInstance()
 	{
+		if(singleton == null)
+			init(Runtime.getRuntime().availableProcessors());
 		return singleton;
 	}
 	
@@ -45,6 +47,22 @@ public class MyThreadPool extends ThreadPoolExecutor {
 	{
 		return size;
 	}
+	public WorkerThread[] execute(WorkerThread worker, int nTasks)
+	{
+		MyThreadPool p = MyThreadPool.getInstance();
+		int[] partition = p.partition(nTasks);
+		WorkerThread[] workers = new WorkerThread[partition.length-1];
+		for(int i=0;i<partition.length-1;i++)
+		{
+			WorkerThread w = worker.clone();
+			w.set(partition[i], partition[i+1]-1);
+			workers[i] = w;
+			p.execute(w);
+		}
+		await();
+		return workers;
+	}
+	
 	public void await()
 	{
 		for(int i=0;i<size;i++)
@@ -54,8 +72,7 @@ public class MyThreadPool extends ThreadPoolExecutor {
 			}
 			catch(Exception ex)
 			{
-				System.out.println("Error in MyThreadPool.await(): " + ex.toString());
-				System.exit(1);
+				throw RankLibError.create("Error in MyThreadPool.await(): ", ex);
 			}
 		}
 		for(int i=0;i<size;i++)
@@ -63,18 +80,16 @@ public class MyThreadPool extends ThreadPoolExecutor {
 	}
 	public int[] partition(int listSize)
 	{
-		int chunk = (listSize-1)/size + 1;
-		int[] partition = new int[size+1];
+		int nChunks = Math.min(listSize, size);
+		int chunkSize = listSize/nChunks;
+		int mod = listSize % nChunks;
+		int[] partition = new int[nChunks+1];
 		partition[0] = 0;
-		for(int i=0;i<size;i++)
-		{
-			int end = (i+1)*chunk;
-			if(end > listSize)
-				end = listSize;
-			partition[i+1] = end;
-		}
+		for(int i=1;i<=nChunks;i++)
+			partition[i] = partition[i-1] + chunkSize + ((i<=mod)?1:0);
 		return partition;
 	}
+	
 	
 	public void execute(Runnable task) 
 	{
@@ -84,8 +99,7 @@ public class MyThreadPool extends ThreadPoolExecutor {
 		}
 		catch(Exception ex)
 		{
-			System.out.println("Error in MyThreadPool.execute(): " + ex.toString());
-			System.exit(1);
+			throw RankLibError.create("Error in MyThreadPool.execute(): ", ex);
 		}
 	}
 	protected void afterExecute(Runnable r, Throwable t)

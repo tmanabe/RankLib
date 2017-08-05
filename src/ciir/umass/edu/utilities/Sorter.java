@@ -210,11 +210,11 @@ public class Sorter {
 		List<Integer> idxList = new ArrayList<Integer>();
 		for(int i=0;i<l.length;i++)
 			idxList.add(i);
-		System.out.print("Sorting...");
+		//System.out.print("Sorting...");
 		idxList = qSort(l, idxList, asc);
 		for(int i=0;i<l.length;i++)
 			idx[i] = idxList.get(i);
-		System.out.println("[Done.]");
+		//System.out.println("[Done.]");
 		return idx;
 	}
 	/**

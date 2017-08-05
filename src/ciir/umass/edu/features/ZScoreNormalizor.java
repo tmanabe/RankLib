@@ -17,40 +17,86 @@ import ciir.umass.edu.learning.RankList;
 /**
  * @author vdang
  */
-public class ZScoreNormalizor implements Normalizer {
-
+public class ZScoreNormalizor extends Normalizer {
 	@Override
-	public void normalize(RankList rl, int[] fids) {
-		
-		float[] mean = new float[fids.length];
-		float[] std = new float[fids.length];
-		Arrays.fill(mean, 0);
-		Arrays.fill(std, 0);
+	public void normalize(RankList rl) {
+		if(rl.size() == 0)
+		{
+			System.out.println("Error in ZScoreNormalizor::normalize(): The input ranked list is empty");
+			System.exit(1);
+		}
+		int nFeature = DataPoint.getFeatureCount();
+		double[] means = new double[nFeature];
+		Arrays.fill(means, 0);
 		for(int i=0;i<rl.size();i++)
 		{
 			DataPoint dp = rl.get(i);
-			for(int j=0;j<fids.length;j++)
-				mean[j] += dp.getFeatureValue(fids[j]);
+			for(int j=1;j<=nFeature;j++)
+				means[j-1] += dp.getFeatureValue(j);
 		}
 		
-		for(int j=0;j<fids.length;j++)
+		for(int j=1;j<=nFeature;j++)
 		{
-			mean[j] = mean[j] / rl.size();
+			means[j-1] = means[j-1] / rl.size();
+			double std = 0;
 			for(int i=0;i<rl.size();i++)
 			{
 				DataPoint p = rl.get(i);
-				float x = p.getFeatureValue(fids[j]) - mean[j];
-				std[j] += x*x;
+				double x = p.getFeatureValue(j) - means[j-1];
+				std += x*x;
 			}
-			std[j] = (float) Math.sqrt(std[j] / (rl.size()-1));
+			std = Math.sqrt(std / (rl.size()-1));
 			//normalize
-			if(std[j] > 0.0)
+			if(std > 0)
 			{
 				for(int i=0;i<rl.size();i++)
 				{
 					DataPoint p = rl.get(i);
-					float x = (p.getFeatureValue(fids[j]) - mean[j])/std[j];//x ~ standard normal (0, 1)
-					p.setFeatureValue(fids[j], x);
+					double x = (p.getFeatureValue(j) - means[j-1])/std;//x ~ standard normal (0, 1)
+					p.setFeatureValue(j, (float)x);
+				}
+			}
+		}
+	}
+	@Override
+	public void normalize(RankList rl, int[] fids) {
+		if(rl.size() == 0)
+		{
+			System.out.println("Error in ZScoreNormalizor::normalize(): The input ranked list is empty");
+			System.exit(1);
+		}
+		
+		//remove duplicate features from the input @fids ==> avoid normalizing the same features multiple times
+		fids = removeDuplicateFeatures(fids);
+		
+		double[] means = new double[fids.length];
+		Arrays.fill(means, 0);
+		for(int i=0;i<rl.size();i++)
+		{
+			DataPoint dp = rl.get(i);
+			for(int j=0;j<fids.length;j++)
+				means[j] += dp.getFeatureValue(fids[j]);
+		}
+		
+		for(int j=0;j<fids.length;j++)
+		{
+			means[j] = means[j] / rl.size();
+			double std = 0;
+			for(int i=0;i<rl.size();i++)
+			{
+				DataPoint p = rl.get(i);
+				double x = p.getFeatureValue(fids[j]) - means[j];
+				std += x*x;
+			}
+			std = Math.sqrt(std / (rl.size()-1));
+			//normalize
+			if(std > 0.0)
+			{
+				for(int i=0;i<rl.size();i++)
+				{
+					DataPoint p = rl.get(i);
+					double x = (p.getFeatureValue(fids[j]) - means[j])/std;//x ~ standard normal (0, 1)
+					p.setFeatureValue(fids[j], (float)x);
 				}
 			}
 		}

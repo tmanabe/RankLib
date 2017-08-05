@@ -13,8 +13,10 @@
     <!-- Create the build directory structure used by compile -->
     <delete dir="${build}"/>
     <mkdir dir="${build}"/>
+<!-- don't delete a directory under svn control
     <delete dir="${dist}"/>
     <mkdir dir="${dist}"/>
+ -->
   </target>
 
   <path id="compile.classpath">
@@ -25,6 +27,8 @@
     <!-- Compile the java code from ${src} into ${build} -->
     <javac srcdir="${src}" 
 	    destdir="${build}">
+	   <exclude name="ciir/umass/edu/tuning/*.java"/>
+	   <exclude name="test/*.java"/>
            <classpath refid="compile.classpath"/>
     </javac>
   </target>
@@ -40,7 +44,7 @@
     <!-- Put everything in ${build} into the MyProject-${DSTAMP}.jar file -->
     <manifest file="MANIFEST.MF">
         <attribute name="Built-By" value="vdang"/>
-        <attribute name="Main-Class" value="ciir.umass.edu.learning.Evaluator"/>
+        <attribute name="Main-Class" value="ciir.umass.edu.eval.Evaluator"/>
         <attribute name="Class-Path" value="${mf.classpath}" />
     </manifest>
     <jar jarfile="${dist}/RankLib.jar" basedir="${build}" manifest="MANIFEST.MF" />

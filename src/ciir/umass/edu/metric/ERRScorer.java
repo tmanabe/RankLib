@@ -32,7 +32,7 @@ public class ERRScorer extends MetricScorer {
 	{
 		this.k = k;
 	}
-	public ERRScorer clone()
+	public ERRScorer copy()
 	{
 		return new ERRScorer();
 	}
@@ -66,7 +66,7 @@ public class ERRScorer extends MetricScorer {
 	}
 	private double R(int rel)
 	{
-		return (double) ((Math.pow(2.0, rel) - 1)/MAX);
+		return (double)((1<<rel)-1) / MAX;// (2^rel - 1)/MAX;
 	}
 	public double[][] swapChange(RankList rl)
 	{

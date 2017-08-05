@@ -9,8 +9,6 @@
 
 package ciir.umass.edu.utilities;
 
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Random;
 
 /**
@@ -22,140 +20,196 @@ public class MergeSorter {
 
 	public static void main(String[] args)
 	{
-		List<Float> list = new ArrayList<Float>();
-		Random r = new Random();
-		for(int i=0;i<10;i++)
+		float[][] f = new float[1000][];
+		for(int r=0;r<f.length;r++)
 		{
-			float x = r.nextFloat();
-			System.out.print(x + " ");
-			list.add(x);
+			f[r] = new float[500];
+			Random rd = new Random();
+			for(int i=0;i<f[r].length;i++)
+			{
+				//float x = rd.nextFloat();
+				float x = rd.nextInt(10);
+				//System.out.print(x + " ");
+				f[r][i] = x;
+			}
+			//System.out.println("");
 		}
-		System.out.println("");
-		int[] idx = sort(list, false);
-		for(int i=0;i<idx.length;i++)
-			System.out.print(list.get(idx[i]) + " ");
+		double start = System.nanoTime();
+		for(int r=0;r<f.length;r++)
+			sort(f[r], false);
+		double end = System.nanoTime();		
+		System.out.println("# " + (double)(end-start)/1e9 + " ");
 	}
 	
-	public static int[] sort(List<Float> list, boolean asc)
-	{
-		float[] values = new float[list.size()];
-		int[] idx = new int[list.size()];
-		for(int i=0;i<list.size();i++)
-		{
-			idx[i] = i;
-			values[i] = list.get(i);
-		}
-		return sort(values, asc);
-	}
 	public static int[] sort(float[] list, boolean asc)
 	{
-		int[] idx = new int[list.length];
-		for(int i=0;i<list.length;i++)
-			idx[i] = i;
-		return sort(list, idx, asc);
+		return sort(list, 0, list.length-1, asc);
 	}
-	public static int[] sort(float[] list, int[] idx, boolean asc)
+	public static int[] sort(float[] list, int begin, int end, boolean asc)
 	{
-		if(idx.length == 1)
-			return idx;
+		int len = end - begin + 1;
+		int[] idx = new int[len];
+		int[] tmp = new int[len];
+		for(int i=begin;i<=end;i++)
+			idx[i-begin] = i;
 		
-		int mid = idx.length / 2;		
-		int[] left = new int[mid];
-		int[] right = new int[idx.length-mid];
-		
-		for(int i=0;i<mid;i++)
-			left[i] = idx[i];
-		for(int i=mid;i<idx.length;i++)
-			right[i-mid] = idx[i];
-		
-		left = sort(list, left, asc);
-		right = sort(list, right, asc);
-		
-		return merge(list, left, right, asc);
-	}
-	private static int[] merge(float[] list, int[] left, int[] right, boolean asc)
-	{
-		int[] idx = new int[left.length + right.length];
-		int i=0;
+		//identify natural runs and merge them (first iteration)
+		int i=1;
 		int j=0;
-		int c=0;
-		while(i < left.length && j < right.length)
-		{
-			if(asc)
+		int k=0;
+		int start= 0;
+		int[] ph = new int[len/2+3];
+		ph[0] = 0;
+		int p=1;
+		do {
+			start = i-1;
+			while(i < idx.length && ((asc && list[begin+i] >= list[begin+i-1]) || (!asc && list[begin+i] <= list[begin+i-1]))) i++;
+			if(i == idx.length)
 			{
-				if(list[left[i]] <= list[right[j]])
-					idx[c++] = left[i++];
-				else
-					idx[c++] = right[j++];
+				System.arraycopy(idx, start, tmp, k, i-start);
+				k = i;
 			}
 			else
 			{
-				if(list[left[i]] >= list[right[j]])
-					idx[c++] = left[i++];
-				else
-					idx[c++] = right[j++];
+				j=i+1;
+				while(j < idx.length && ((asc && list[begin+j] >= list[begin+j-1]) || (!asc && list[begin+j] <= list[begin+j-1]))) j++;
+				merge(list, idx, start, i-1, i, j-1, tmp, k, asc);
+				i = j+1;
+				k=j;				
 			}
-		}
-		for(;i<left.length;i++)
-			idx[c++] = left[i];
-		for(;j<right.length;j++)
-			idx[c++] = right[j];
+			ph[p++] = k;
+		}while(k < idx.length);
+		System.arraycopy(tmp, 0, idx, 0, idx.length);
+		
+		//subsequent iterations
+		while(p > 2)
+		{
+			if(p % 2 == 0)
+				ph[p++] = idx.length;
+			k=0;
+			int np = 1;
+			for(int w=0;w<p-1;w+=2)
+			{
+				merge(list, idx, ph[w], ph[w+1]-1, ph[w+1], ph[w+2]-1, tmp, k, asc);
+				k = ph[w+2];
+				ph[np++] = k;				
+			}
+			p = np;
+			System.arraycopy(tmp, 0, idx, 0, idx.length);
+		}		
 		return idx;
 	}
-
+	private static void merge(float[] list, int[] idx, int s1, int e1, int s2, int e2, int[] tmp, int l, boolean asc)
+	{
+		int i=s1;
+		int j=s2;
+		int k=l;
+		while(i <= e1 && j <= e2)
+		{
+			if(asc)
+			{
+				if(list[idx[i]] <= list[idx[j]])
+					tmp[k++] = idx[i++];
+				else
+					tmp[k++] = idx[j++];
+			}
+			else
+			{
+				if(list[idx[i]] >= list[idx[j]])
+					tmp[k++] = idx[i++];
+				else
+					tmp[k++] = idx[j++];
+			}
+		}
+		while(i <= e1)
+			tmp[k++] = idx[i++];
+		while(j <= e2)
+			tmp[k++] = idx[j++];
+	}
+	
 	public static int[] sort(double[] list, boolean asc)
 	{
-		int[] idx = new int[list.length];
-		for(int i=0;i<list.length;i++)
-			idx[i] = i;
-		return sort(list, idx, asc);
+		return sort(list, 0, list.length-1, asc);
 	}
-	public static int[] sort(double[] list, int[] idx, boolean asc)
+	public static int[] sort(double[] list, int begin, int end, boolean asc)
 	{
-		if(idx.length == 1)
-			return idx;
+		int len = end - begin + 1;
+		int[] idx = new int[len];
+		int[] tmp = new int[len];
+		for(int i=begin;i<=end;i++)
+			idx[i-begin] = i;
 		
-		int mid = idx.length / 2;		
-		int[] left = new int[mid];
-		int[] right = new int[idx.length-mid];
-		
-		for(int i=0;i<mid;i++)
-			left[i] = idx[i];
-		for(int i=mid;i<idx.length;i++)
-			right[i-mid] = idx[i];
-		
-		left = sort(list, left, asc);
-		right = sort(list, right, asc);
-		
-		return merge(list, left, right, asc);
-	}
-	private static int[] merge(double[] list, int[] left, int[] right, boolean asc)
-	{
-		int[] idx = new int[left.length + right.length];
-		int i=0;
+		//identify natural runs and merge them (first iteration)
+		int i=1;
 		int j=0;
-		int c=0;
-		while(i < left.length && j < right.length)
-		{
-			if(asc)
+		int k=0;
+		int start= 0;
+		int[] ph = new int[len/2+3];
+		ph[0] = 0;
+		int p=1;
+		do {
+			start = i-1;
+			while(i < idx.length && ((asc && list[begin+i] >= list[begin+i-1]) || (!asc && list[begin+i] <= list[begin+i-1]))) i++;
+			if(i == idx.length)
 			{
-				if(list[left[i]] <= list[right[j]])
-					idx[c++] = left[i++];
-				else
-					idx[c++] = right[j++];
+				System.arraycopy(idx, start, tmp, k, i-start);
+				k = i;
 			}
 			else
 			{
-				if(list[left[i]] >= list[right[j]])
-					idx[c++] = left[i++];
+				j=i+1;
+				while(j < idx.length && ((asc && list[begin+j] >= list[begin+j-1]) || (!asc && list[begin+j] <= list[begin+j-1]))) j++;
+				merge(list, idx, start, i-1, i, j-1, tmp, k, asc);
+				i = j+1;
+				k=j;				
+			}
+			ph[p++] = k;
+		}while(k < idx.length);
+		System.arraycopy(tmp, 0, idx, 0, idx.length);
+		
+		//subsequent iterations
+		while(p > 2)
+		{
+			if(p % 2 == 0)
+				ph[p++] = idx.length;
+			k=0;
+			int np = 1;
+			for(int w=0;w<p-1;w+=2)
+			{
+				merge(list, idx, ph[w], ph[w+1]-1, ph[w+1], ph[w+2]-1, tmp, k, asc);
+				k = ph[w+2];
+				ph[np++] = k;				
+			}
+			p = np;
+			System.arraycopy(tmp, 0, idx, 0, idx.length);
+		}		
+		return idx;
+	}
+	private static void merge(double[] list, int[] idx, int s1, int e1, int s2, int e2, int[] tmp, int l, boolean asc)
+	{
+		int i=s1;
+		int j=s2;
+		int k=l;
+		while(i <= e1 && j <= e2)
+		{
+			if(asc)
+			{
+				if(list[idx[i]] <= list[idx[j]])
+					tmp[k++] = idx[i++];
 				else
-					idx[c++] = right[j++];
+					tmp[k++] = idx[j++];
+			}
+			else
+			{
+				if(list[idx[i]] >= list[idx[j]])
+					tmp[k++] = idx[i++];
+				else
+					tmp[k++] = idx[j++];
 			}
 		}
-		for(;i<left.length;i++)
-			idx[c++] = left[i];
-		for(;j<right.length;j++)
-			idx[c++] = right[j];
-		return idx;
+		while(i <= e1)
+			tmp[k++] = idx[i++];
+		while(j <= e2)
+			tmp[k++] = idx[j++];
 	}
 }

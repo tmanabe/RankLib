@@ -9,16 +9,17 @@
 
 package ciir.umass.edu.learning.neuralnet;
 
-import java.io.BufferedReader;
-import java.io.FileInputStream;
-import java.io.InputStreamReader;
-import java.util.ArrayList;
-import java.util.List;
-
 import ciir.umass.edu.learning.DataPoint;
 import ciir.umass.edu.learning.RankList;
 import ciir.umass.edu.learning.Ranker;
+import ciir.umass.edu.metric.MetricScorer;
+import ciir.umass.edu.utilities.RankLibError;
 import ciir.umass.edu.utilities.SimpleMath;
+
+import java.io.BufferedReader;
+import java.io.StringReader;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * @author vdang
@@ -53,9 +54,9 @@ public class RankNet extends Ranker {
 	{
 		
 	}
-	public RankNet(List<RankList> samples, int [] features)
+	public RankNet(List<RankList> samples, int [] features, MetricScorer scorer)
 	{
-		super(samples, features);
+		super(samples, features, scorer);
 	}
 	
 	/**
@@ -229,7 +230,7 @@ public class RankNet extends Ranker {
 		}
 		catch(Exception ex)
 		{
-			System.out.println("Error in NeuralNetwork.restoreBestModelOnValidation(): " + ex.toString());
+			throw RankLibError.create("Error in NeuralNetwork.restoreBestModelOnValidation(): ", ex);
 		}
 	}
 	protected double crossEntropy(double o1, double o2, double targetValue)
@@ -367,7 +368,7 @@ public class RankNet extends Ranker {
 			layers.get(k).computeOutput();		
 		return outputLayer.get(0).getOutput();
 	}	
-	public Ranker clone()
+	public Ranker createNew()
 	{
 		return new RankNet();
 	}
@@ -408,14 +409,12 @@ public class RankNet extends Ranker {
 		output += toString();
 		return output;
 	}
-	public void load(String fn)
+	public void loadFromString(String fullText)
 	{
 		try {
 			String content = "";
-			BufferedReader in = new BufferedReader(
-					new InputStreamReader(
-							new FileInputStream(fn), "ASCII"));
-			
+			BufferedReader in = new BufferedReader(new StringReader(fullText));
+
 			List<String> l = new ArrayList<String>();
 			while((content = in.readLine()) != null)
 			{
@@ -458,7 +457,7 @@ public class RankNet extends Ranker {
 		}
 		catch(Exception ex)
 		{
-			System.out.println("Error in RankNet::load(): " + ex.toString());
+			throw RankLibError.create("Error in RankNet::load(): ", ex);
 		}
 	}
 	public void printParameters()

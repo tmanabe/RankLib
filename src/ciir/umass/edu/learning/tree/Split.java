@@ -23,15 +23,16 @@ public class Split {
 	//Key attributes of a split (tree node)
 	private int featureID = -1;
 	private float threshold = 0F;
-	private float avgLabel = 0.0F;
+	private double avgLabel = 0.0F;
 	
 	//Intermediate variables (ONLY used during learning)
 	//*DO NOT* attempt to access them once the training is done
+	private boolean isRoot = false;
 	private double sumLabel = 0.0;
 	private double sqSumLabel = 0.0;
 	private Split left = null;
 	private Split right = null;
-	private float deviance = 0F;//mean squared error "S"
+	private double deviance = 0F;//mean squared error "S"
 	private int[][] sortedSampleIDs = null;
 	public int[] samples = null;
 	public FeatureHistogram hist = null;
@@ -40,31 +41,30 @@ public class Split {
 	{
 		
 	}
-	public Split(int featureID, float threshold, float deviance)
+	public Split(int featureID, float threshold, double deviance)
 	{
 		this.featureID = featureID;
 		this.threshold = threshold;
 		this.deviance = deviance;
 	}
-	public Split(int[][] sortedSampleIDs, float deviance, double sumLabel, double sqSumLabel)
+	public Split(int[][] sortedSampleIDs, double deviance, double sumLabel, double sqSumLabel)
 	{
 		this.sortedSampleIDs = sortedSampleIDs;
 		this.deviance = deviance;
 		this.sumLabel = sumLabel;
 		this.sqSumLabel = sqSumLabel;
-		avgLabel = (float)(sumLabel/sortedSampleIDs[0].length);
+		avgLabel = sumLabel/sortedSampleIDs[0].length;
 	}
-	
-	public Split(int[] samples, FeatureHistogram hist, float deviance, double sumLabel)
+	public Split(int[] samples, FeatureHistogram hist, double deviance, double sumLabel)
 	{
 		this.samples = samples;
 		this.hist = hist;
 		this.deviance = deviance;
 		this.sumLabel = sumLabel;
-		avgLabel = (float)(sumLabel/samples.length);
+		avgLabel = sumLabel/samples.length;
 	}
 	
-	public void set(int featureID, float threshold, float deviance)
+	public void set(int featureID, float threshold, double deviance)
 	{
 		this.featureID = featureID;
 		this.threshold = threshold;
@@ -91,11 +91,11 @@ public class Split {
 	{
 		return right;
 	}
-	public float getDeviance()
+	public double getDeviance()
 	{
 		return deviance;
 	}
-	public float getOutput()
+	public double getOutput()
 	{
 		return avgLabel;
 	}
@@ -104,7 +104,7 @@ public class Split {
 	{
 		List<Split> list = new ArrayList<Split>();
 		leaves(list);
-		return list;
+		return list;		
 	}
 	private void leaves(List<Split> leaves)
 	{
@@ -117,13 +117,17 @@ public class Split {
 		}
 	}
 	
-	public float eval(DataPoint dp)
+	public double eval(DataPoint dp)
 	{
-		if(featureID == -1)
-			return avgLabel;
-		if(dp.getFeatureValue(featureID) <= threshold)
-			return left.eval(dp);
-		return right.eval(dp);
+		Split n = this;
+		while(n.featureID != -1)
+		{
+			if(dp.getFeatureValue(n.featureID) <= n.threshold)
+				n = n.left;
+			else
+				n = n.right;
+		}
+		return n.avgLabel;
 	}
 	
 	public String toString()
@@ -157,9 +161,13 @@ public class Split {
 		}
 		return strOutput;
 	}
-	
+
 	//Internal functions(ONLY used during learning)
 	//*DO NOT* attempt to call them once the training is done
+	public boolean split(double[] trainingLabels, int minLeafSupport)
+	{
+		return hist.findBestSplit(this, trainingLabels, minLeafSupport);
+	}
 	public int[] getSamples()
 	{
 		if(sortedSampleIDs != null)
@@ -183,5 +191,13 @@ public class Split {
 		sortedSampleIDs = null;
 		samples = null;
 		hist = null;
+	}
+	public void setRoot(boolean isRoot)
+	{
+		this.isRoot = isRoot;
+	}
+	public boolean isRoot()
+	{
+		return isRoot;
 	}
 }

@@ -9,21 +9,22 @@
 
 package ciir.umass.edu.learning;
 
-import java.io.BufferedReader;
-import java.io.FileInputStream;
-import java.io.InputStreamReader;
-import java.util.Hashtable;
-import java.util.List;
-
 import ciir.umass.edu.learning.boosting.AdaRank;
 import ciir.umass.edu.learning.boosting.RankBoost;
 import ciir.umass.edu.learning.neuralnet.LambdaRank;
 import ciir.umass.edu.learning.neuralnet.ListNet;
 import ciir.umass.edu.learning.neuralnet.RankNet;
-import ciir.umass.edu.learning.tree.MART;
 import ciir.umass.edu.learning.tree.LambdaMART;
+import ciir.umass.edu.learning.tree.MART;
 import ciir.umass.edu.learning.tree.RFRanker;
+import ciir.umass.edu.metric.MetricScorer;
 import ciir.umass.edu.utilities.FileUtils;
+import ciir.umass.edu.utilities.RankLibError;
+
+import java.io.BufferedReader;
+import java.io.StringReader;
+import java.util.HashMap;
+import java.util.List;
 
 /**
  * @author vdang
@@ -32,8 +33,8 @@ import ciir.umass.edu.utilities.FileUtils;
  */
 public class RankerFactory {
 
-	protected Ranker[] rFactory = new Ranker[]{new MART(), new RankBoost(), new RankNet(), new AdaRank(), new CoorAscent(), new LambdaRank(), new LambdaMART(), new ListNet(), new RFRanker()};
-	protected static Hashtable<String, RANKER_TYPE> map = new Hashtable<String, RANKER_TYPE>();
+	protected Ranker[] rFactory = new Ranker[]{new MART(), new RankBoost(), new RankNet(), new AdaRank(), new CoorAscent(), new LambdaRank(), new LambdaMART(), new ListNet(), new RFRanker(), new LinearRegRank()};
+	protected static HashMap<String, RANKER_TYPE> map = new HashMap<String, RANKER_TYPE>();
 	
 	public RankerFactory()
 	{
@@ -46,35 +47,71 @@ public class RankerFactory {
 		map.put(createRanker(RANKER_TYPE.LAMBDAMART).name().toUpperCase(), RANKER_TYPE.LAMBDAMART);
 		map.put(createRanker(RANKER_TYPE.LISTNET).name().toUpperCase(), RANKER_TYPE.LISTNET);
 		map.put(createRanker(RANKER_TYPE.RANDOM_FOREST).name().toUpperCase(), RANKER_TYPE.RANDOM_FOREST);
-	}
-	
+		map.put(createRanker(RANKER_TYPE.LINEAR_REGRESSION).name().toUpperCase(), RANKER_TYPE.LINEAR_REGRESSION);
+	}	
 	public Ranker createRanker(RANKER_TYPE type)
 	{
-		Ranker r = rFactory[type.ordinal() - RANKER_TYPE.MART.ordinal()].clone();
-		return r;
+		return rFactory[type.ordinal() - RANKER_TYPE.MART.ordinal()].createNew();
 	}
-	public Ranker createRanker(RANKER_TYPE type, List<RankList> samples, int[] features)
+	public Ranker createRanker(RANKER_TYPE type, List<RankList> samples, int[] features, MetricScorer scorer)
 	{
 		Ranker r = createRanker(type);
-		r.set(samples, features);
+		r.setTrainingSet(samples);
+		r.setFeatures(features);
+		r.setMetricScorer(scorer);
 		return r;
 	}
-	public Ranker loadRanker(String modelFile)
+	@SuppressWarnings("unchecked")
+	public Ranker createRanker(String className)
 	{
 		Ranker r = null;
 		try {
-			BufferedReader in = new BufferedReader(new InputStreamReader(new FileInputStream(modelFile), "ASCII"));
-			String content = in.readLine();//read the first line to get the name of the ranking algorithm
-			in.close();
-			content = content.replace("## ", "").trim();
-			System.out.println("Model:\t\t" + content);
-			r = createRanker(map.get(content.toUpperCase()));
-			r.load(modelFile);
+			Class c = Class.forName(className);
+			r = (Ranker) c.newInstance();
 		}
-		catch(Exception ex)
-		{
-			System.out.println("Error in RankerFactory.load(): " + ex.toString());
+		catch (ClassNotFoundException e) {
+			System.out.println("Could find the class \"" + className + "\" you specified. Make sure the jar library is in your classpath.");
+			e.printStackTrace();
+			System.exit(1);
+		}
+		catch (InstantiationException e) {
+			System.out.println("Cannot create objects from the class \"" + className + "\" you specified.");
+			e.printStackTrace();
+			System.exit(1);
+		}
+		catch (IllegalAccessException e) {
+			System.out.println("The class \"" + className + "\" does not implement the Ranker interface.");
+			e.printStackTrace();
+			System.exit(1);
 		}
 		return r;
 	}
+	public Ranker createRanker(String className, List<RankList> samples, int[] features, MetricScorer scorer)
+	{
+		Ranker r = createRanker(className);
+		r.setTrainingSet(samples);
+		r.setFeatures(features);
+		r.setMetricScorer(scorer);
+		return r;
+	}
+	public Ranker loadRankerFromFile(String modelFile)
+	{
+    return loadRankerFromString(FileUtils.read(modelFile, "ASCII"));
+	}
+  public Ranker loadRankerFromString(String fullText)
+  {
+    try (BufferedReader in = new BufferedReader(new StringReader(fullText))) {
+			Ranker r;
+      String content = in.readLine();//read the first line to get the name of the ranking algorithm
+      content = content.replace("## ", "").trim();
+      System.out.println("Model:\t\t" + content);
+      r = createRanker(map.get(content.toUpperCase()));
+      r.loadFromString(fullText);
+			return r;
+    }
+    catch(Exception ex)
+    {
+			throw RankLibError.create(ex);
+    }
+  }
 }

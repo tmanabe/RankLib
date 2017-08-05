@@ -30,7 +30,7 @@ public class BestAtKScorer extends MetricScorer {
 	{
 		return rl.get(maxToK(rl, k-1)).getLabel();
 	}
-	public MetricScorer clone()
+	public MetricScorer copy()
 	{
 		return new BestAtKScorer();
 	}

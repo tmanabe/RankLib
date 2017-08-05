@@ -9,19 +9,19 @@
 
 package ciir.umass.edu.learning.boosting;
 
-import java.io.BufferedReader;
-import java.io.FileInputStream;
-import java.io.InputStreamReader;
-import java.util.ArrayList;
-import java.util.Hashtable;
-import java.util.List;
-
 import ciir.umass.edu.learning.DataPoint;
-import ciir.umass.edu.learning.Ranker;
-import ciir.umass.edu.learning.boosting.WeakRanker;
 import ciir.umass.edu.learning.RankList;
+import ciir.umass.edu.learning.Ranker;
+import ciir.umass.edu.metric.MetricScorer;
 import ciir.umass.edu.utilities.KeyValuePair;
+import ciir.umass.edu.utilities.RankLibError;
 import ciir.umass.edu.utilities.SimpleMath;
+
+import java.io.BufferedReader;
+import java.io.StringReader;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
 
 /**
  * @author vdang
@@ -37,7 +37,7 @@ public class AdaRank extends Ranker {
 	public static boolean trainWithEnqueue = true;
 	public static int maxSelCount = 5;//the max. number of times a feature can be selected consecutively before being removed
 	
-	protected Hashtable<Integer, Integer> usedFeatures = new Hashtable<Integer, Integer>();
+	protected HashMap<Integer, Integer> usedFeatures = new HashMap<Integer, Integer>();
 	protected double[] sweight = null;//sample weight
 	protected List<WeakRanker> rankers = null;//alpha
 	protected List<Double> rweight = null;//weak rankers' weight
@@ -58,9 +58,9 @@ public class AdaRank extends Ranker {
 	{
 		
 	}
-	public AdaRank(List<RankList> samples, int[] features)
+	public AdaRank(List<RankList> samples, int[] features, MetricScorer scorer)
 	{
-		super(samples, features);
+		super(samples, features, scorer);
 	}
 	
 	private void updateBestModelOnValidation()
@@ -74,25 +74,21 @@ public class AdaRank extends Ranker {
 	{
 		double bestScore = -1.0;
 		WeakRanker bestWR = null;
-		for(int k=0;k<features.length;k++)
-		{
-			int i = features[k];
-			if(featureQueue.contains(i))
+		for (int i : features) {
+			if (featureQueue.contains(i))
 				continue;
-			
-			if(usedFeatures.get(i)!=null)
+
+			if (usedFeatures.get(i) != null)
 				continue;
-			
+
 			WeakRanker wr = new WeakRanker(i);
 			double s = 0.0;
-			for(int j=0;j<samples.size();j++)
-			{
+			for (int j = 0; j < samples.size(); j++) {
 				double t = scorer.score(wr.rank(samples.get(j))) * sweight[j];
 				s += t;
 			}
-			
-			if(bestScore < s)
-			{
+
+			if (bestScore < s) {
 				bestScore = s;
 				bestWR = wr;
 			}
@@ -102,7 +98,7 @@ public class AdaRank extends Ranker {
 	private int learn(int startIteration, boolean withEnqueue)
 	{
 		int t = startIteration;
-		for(;t<=nIteration;t++)
+		for(; t<=nIteration; t++)
 		{
 			PRINT(new int[]{7}, new String[]{t+""});
 			
@@ -150,10 +146,9 @@ public class AdaRank extends Ranker {
 			double trainedScore = 0.0;
 			//update the distribution of sample weight
 			double total = 0.0;
-			for(int i=0;i<samples.size();i++)
-			{
-				double tmp = scorer.score(rank(samples.get(i)));
-				total += Math.exp(-alpha_t*tmp);
+			for (RankList sample : samples) {
+				double tmp = scorer.score(rank(sample));
+				total += Math.exp(-alpha_t * tmp);
 				trainedScore += tmp;
 			}
 			trainedScore /= samples.size();
@@ -295,7 +290,7 @@ public class AdaRank extends Ranker {
 			score += rweight.get(j) * p.getFeatureValue(rankers.get(j).getFID());
 		return score;
 	}
-	public Ranker clone()
+	public Ranker createNew()
 	{
 		return new AdaRank();
 	}
@@ -316,14 +311,11 @@ public class AdaRank extends Ranker {
 		output += toString();
 		return output;
 	}
-	public void load(String fn)
+	public void loadFromString(String fullText)
 	{
-		try {
+		try (BufferedReader in = new BufferedReader(new StringReader(fullText))) {
 			String content = "";
-			BufferedReader in = new BufferedReader(
-					new InputStreamReader(
-							new FileInputStream(fn), "ASCII"));
-			
+
 			KeyValuePair kvp = null;
 			while((content = in.readLine()) != null)
 			{
@@ -335,12 +327,13 @@ public class AdaRank extends Ranker {
 				kvp = new KeyValuePair(content);
 				break;
 			}
-			in.close();
+
+			assert(kvp != null);
 			
 			List<String> keys = kvp.keys();
 			List<String> values = kvp.values();
-			rweight = new ArrayList<Double>();
-			rankers = new ArrayList<WeakRanker>();
+			rweight = new ArrayList<>();
+			rankers = new ArrayList<>();
 			features = new int[keys.size()];
 			for(int i=0;i<keys.size();i++)
 			{
@@ -351,7 +344,7 @@ public class AdaRank extends Ranker {
 		}
 		catch(Exception ex)
 		{
-			System.out.println("Error in AdaRank::load(): " + ex.toString());
+			throw RankLibError.create("Error in AdaRank::load(): ", ex);
 		}
 	}
 	public void printParameters()

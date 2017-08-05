@@ -9,29 +9,20 @@
 
 package ciir.umass.edu.learning.tree;
 
+import ciir.umass.edu.learning.DataPoint;
+import ciir.umass.edu.learning.RankList;
+import ciir.umass.edu.learning.Ranker;
+import ciir.umass.edu.metric.MetricScorer;
+import ciir.umass.edu.utilities.MergeSorter;
+import ciir.umass.edu.utilities.MyThreadPool;
+import ciir.umass.edu.utilities.RankLibError;
+import ciir.umass.edu.utilities.SimpleMath;
+
 import java.io.BufferedReader;
-import java.io.FileInputStream;
-import java.io.InputStreamReader;
+import java.io.StringReader;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-
-import ciir.umass.edu.learning.CoorAscent;
-import ciir.umass.edu.learning.DataPoint;
-import ciir.umass.edu.learning.Evaluator;
-import ciir.umass.edu.learning.RANKER_TYPE;
-import ciir.umass.edu.learning.RankList;
-import ciir.umass.edu.learning.Ranker;
-import ciir.umass.edu.learning.boosting.AdaRank;
-import ciir.umass.edu.learning.boosting.RankBoost;
-import ciir.umass.edu.learning.neuralnet.LambdaRank;
-import ciir.umass.edu.learning.neuralnet.ListNet;
-import ciir.umass.edu.learning.neuralnet.Neuron;
-import ciir.umass.edu.learning.neuralnet.RankNet;
-import ciir.umass.edu.metric.METRIC;
-import ciir.umass.edu.utilities.MyThreadPool;
-import ciir.umass.edu.utilities.SimpleMath;
-import ciir.umass.edu.utilities.MergeSorter;
 
 /**
  * @author vdang
@@ -49,76 +40,31 @@ public class LambdaMART extends Ranker {
 	public static int nTreeLeaves = 10;
 	public static int minLeafSupport = 1;
 	
+	//for debugging
+	public static int gcCycle = 100;
+	
 	//Local variables
 	protected float[][] thresholds = null;
 	protected Ensemble ensemble = null;
-	protected float[] modelScores = null;//on training data
+	protected double[] modelScores = null;//on training data
 	
-	protected float[][] modelScoresOnValidation = null;
+	protected double[][] modelScoresOnValidation = null;
 	protected int bestModelOnValidation = Integer.MAX_VALUE-2;
 	
 	//Training instances prepared for MART
 	protected DataPoint[] martSamples = null;//Need initializing only once
 	protected int[][] sortedIdx = null;//sorted list of samples in @martSamples by each feature -- Need initializing only once 
 	protected FeatureHistogram hist = null;
-	protected float[] pseudoResponses = null;//different for each iteration
-	
-	public static void main(String args[])
-	{
-		MyThreadPool.init(Runtime.getRuntime().availableProcessors());
-		CoorAscent.nRestart = 1;
-		
-		Evaluator ev = new Evaluator(RANKER_TYPE.RANDOM_FOREST, METRIC.MAP, 10, METRIC.NDCG, 1);
-		AdaRank.trainWithEnqueue = false;
-		RankNet.nHiddenLayer = 1;
-		RankNet.nIteration = 300;
-		RankNet.nHiddenNodePerLayer = 5;
-		//RankNet.learningRate = 0.0005;
-		RankNet.learningRate = 0.0001;
-		
-		RankBoost.nIteration = 100;
-		RankBoost.nThreshold = 200;
-		
-		LambdaMART.nThreshold = 2000;
-		RFRanker.nBag = 100;
-		//ev.modelFile = "RandomForest.model";
-		//ev.evaluate("data/toy/train.txt", "data/toy/vali.txt", "data/toy/test.txt", "");
-		
-		//ev.evaluate("data/Fold1/train.txt", "data/Fold1/test.txt", "");
-		//ev.evaluate("data/Fold1/train.txt", "data/Fold1/test.txt", "");
-		//ev.evaluate("data/MQ2008/Fold1/train-vali.txt", "", "data/MQ2008/Fold1/test.txt", "");
-		//ev.evaluate("data/MQ2008/Fold2/train-vali.txt", "", "data/MQ2008/Fold2/test.txt", "");
-		
-		//ev.evaluate("data/MQ2008/Fold1/train.txt", "data/MQ2008/Fold1/vali.txt", "data/MQ2008/Fold1/test.txt", "");
-		//ev.evaluate("data/MQ2008/Fold2/train.txt", "data/MQ2008/Fold2/vali.txt", "data/MQ2008/Fold2/test.txt", "");
-		//ev.evaluate("data/MQ2008/Fold3/train.txt", "data/MQ2008/Fold3/vali.txt", "data/MQ2008/Fold3/test.txt", "");
-		//ev.evaluate("data/MQ2008/Fold4/train.txt", "data/MQ2008/Fold4/vali.txt", "data/MQ2008/Fold4/test.txt", "");
-		//ev.evaluate("data/MQ2008/Fold5/train.txt", "data/MQ2008/Fold5/vali.txt", "data/MQ2008/Fold5/test.txt", "");
-		//ev.evaluate("data/Fold4/train.txt", "data/Fold4/vali.txt", "data/Fold4/test.txt", "");
-		//ev.evaluate("data/Fold5/train.txt", "data/Fold5/vali.txt", "data/Fold5/test.txt", "");
-		
-		//ev.evaluate("data/toy/train.txt", "data/toy/test.txt", "");
-		//ev.evaluate("data/MQ2007/Fold1/train.txt", "data/MQ2007/Fold1/test.txt", "");
-		//ev.evaluate("data/MQ2007/Fold1/train.txt", 0.8, "data/MQ2007/Fold1/test.txt", "");
-		
-		//ev.evaluate("data/MQ2007/Fold1/train.txt", "data/MQ2007/Fold1/vali.txt", "data/MQ2007/Fold1/test.txt", "");
-		ev.evaluate("data/MQ2007/Fold2/train.txt", "data/MQ2007/Fold2/vali.txt", "data/MQ2007/Fold2/test.txt", "");
-		//ev.evaluate("data/MQ2007/Fold3/train.txt", "data/MQ2007/Fold3/vali.txt", "data/MQ2007/Fold3/test.txt", "");
-		//ev.evaluate("data/MQ2007/Fold4/train.txt", "data/MQ2007/Fold4/vali.txt", "data/MQ2007/Fold4/test.txt", "");
-		//ev.evaluate("data/MQ2007/Fold5/train.txt", "data/MQ2007/Fold5/vali.txt", "data/MQ2007/Fold5/test.txt", "");
-		//ev.evaluate("data/MSLR-WEB10K/Fold1/train.txt", "data/MSLR-WEB10K/Fold1/vali.txt", "data/MSLR-WEB10K/Fold1/test.txt", "");
-		
-		//ev.test("RandomForest.model", "data/MQ2008/Fold1/test.txt");
-		//ev.rank("RB.model", "data/MQ2008/Fold1/test.txt");
-		MyThreadPool.getInstance().shutdown();
-	}
+	protected double[] pseudoResponses = null;//different for each iteration
+	protected double[] weights = null;//different for each iteration
 	
 	public LambdaMART()
 	{		
 	}
-	public LambdaMART(List<RankList> samples, int[] features)
+
+	public LambdaMART(List<RankList> samples, int[] features, MetricScorer scorer)
 	{
-		super(samples, features);
+		super(samples, features, scorer);
 	}
 	
 	public void init()
@@ -133,8 +79,9 @@ public class LambdaMART extends Ranker {
 		}
 		int current = 0;
 		martSamples = new DataPoint[dpCount];
-		modelScores = new float[dpCount];
-		pseudoResponses = new float[dpCount];
+		modelScores = new double[dpCount];
+		pseudoResponses = new double[dpCount];
+		weights = new double[dpCount];
 		for(int i=0;i<samples.size();i++)
 		{
 			RankList rl = samples.get(i);
@@ -143,6 +90,7 @@ public class LambdaMART extends Ranker {
 				martSamples[current+j] = rl.get(j);
 				modelScores[current+j] = 0.0F;
 				pseudoResponses[current+j] = 0.0F;
+				weights[current+j] = 0;
 			}
 			current += rl.size();
 		}			
@@ -187,6 +135,7 @@ public class LambdaMART extends Ranker {
 				}
 				i = j-1;//[i, j] gives the range of samples with the same feature value
 			}
+			
 			if(values.size() <= nThreshold || nThreshold == -1)
 			{
 				thresholds[f] = new float[values.size()+1];
@@ -207,10 +156,10 @@ public class LambdaMART extends Ranker {
 		
 		if(validationSamples != null)
 		{
-			modelScoresOnValidation = new float[validationSamples.size()][];
+			modelScoresOnValidation = new double[validationSamples.size()][];
 			for(int i=0;i<validationSamples.size();i++)
 			{
-				modelScoresOnValidation[i] = new float[validationSamples.get(i).size()];
+				modelScoresOnValidation[i] = new double[validationSamples.get(i).size()];
 				Arrays.fill(modelScoresOnValidation[i], 0);
 			}
 		}
@@ -224,6 +173,7 @@ public class LambdaMART extends Ranker {
 		System.gc();
 		PRINTLN("[Done]");
 	}
+
 	public void learn()
 	{
 		ensemble = new Ensemble();
@@ -247,25 +197,33 @@ public class LambdaMART extends Ranker {
 			
 			//update the histogram with these training labels (the feature histogram will be used to find the best tree split)
 			hist.update(pseudoResponses);
-			
+		
 			//Fit a regression tree			
 			RegressionTree rt = new RegressionTree(nTreeLeaves, martSamples, pseudoResponses, hist, minLeafSupport);
 			rt.fit();
 			
 			//Add this tree to the ensemble (our model)
 			ensemble.add(rt, learningRate);
-			
+
 			//update the outputs of the tree (with gamma computed using the Newton-Raphson method) 
 			updateTreeOutput(rt);
 			
-			rt.clearSamples();//clear references to data that is longer used
+			//Update the model's outputs on all training samples
+			List<Split> leaves = rt.leaves();
+			for(int i=0;i<leaves.size();i++)
+			{
+				Split s = leaves.get(i);
+				int[] idx = s.getSamples();
+				for(int j=0;j<idx.length;j++)
+					modelScores[idx[j]] += learningRate * s.getOutput();
+			}
+
+			//clear references to data that is no longer used
+			rt.clearSamples();
 			
 			//beg the garbage collector to work...
-			System.gc();
-			
-			//Update the model's outputs on all training samples
-			for(int i=0;i<modelScores.length;i++)
-				modelScores[i] += learningRate * rt.eval(martSamples[i]);
+			if(m % gcCycle == 0)
+				System.gc();//this call is expensive. We shouldn't do it too often.
 
 			//Evaluate the current model
 			scoreOnTrainingData = computeModelScoreOnTraining();
@@ -274,7 +232,7 @@ public class LambdaMART extends Ranker {
 			//
 			//		scoreOnTrainingData = scorer.score(rank(samples);
 			//
-			//However, this function is more efficient since it uses the cached outputs of the model (as opposed to re-evaluate the model 
+			//However, this function is more efficient since it uses the cached outputs of the model (as opposed to re-evaluating the model 
 			//on the entire training set).
 			
 			PRINT(new int[]{9}, new String[]{SimpleMath.round(scoreOnTrainingData, 4) + ""});			
@@ -288,7 +246,8 @@ public class LambdaMART extends Ranker {
 						modelScoresOnValidation[i][j] += learningRate * rt.eval(validationSamples.get(i).get(j));
 				
 				//again, equivalent to scoreOnValidation=scorer.score(rank(validationSamples)), but more efficient since we use the cached models' outputs
-				double score = computeModelScoreOnValidation();				
+				double score = computeModelScoreOnValidation();
+				
 				PRINT(new int[]{9}, new String[]{SimpleMath.round(score, 4) + ""});
 				if(score > bestScoreOnValidationData)
 				{
@@ -297,8 +256,6 @@ public class LambdaMART extends Ranker {
 				}
 			}
 			
-			//long end = System.nanoTime();
-			//System.out.print(" [" + (double)(end-start)/1e9 + "] ");
 			PRINTLN("");
 			
 			//Should we stop early?
@@ -322,18 +279,22 @@ public class LambdaMART extends Ranker {
 		}
 		PRINTLN("---------------------------------");
 	}
+
 	public double eval(DataPoint dp)
 	{
 		return ensemble.eval(dp);
 	}	
-	public Ranker clone()
+
+	public Ranker createNew()
 	{
 		return new LambdaMART();
 	}
+
 	public String toString()
 	{
 		return ensemble.toString();
 	}
+
 	public String model()
 	{
 		String output = "## " + name() + "\n";
@@ -346,12 +307,15 @@ public class LambdaMART extends Ranker {
 		output += toString();
 		return output;
 	}
-	public void load(String fn)
+
+        @Override
+	public void loadFromString(String fullText)
 	{
 		try {
 			String content = "";
-			String model = "";
-			BufferedReader in = new BufferedReader(new InputStreamReader(new FileInputStream(fn), "ASCII"));
+			//String model = "";
+                        StringBuffer model = new StringBuffer ();
+			BufferedReader in = new BufferedReader(new StringReader(fullText));
 			while((content = in.readLine()) != null)
 			{
 				content = content.trim();
@@ -360,29 +324,35 @@ public class LambdaMART extends Ranker {
 				if(content.indexOf("##")==0)
 					continue;
 				//actual model component
-				model += content;
+				//model += content;
+                                model.append (content);
 			}
 			in.close();
 			//load the ensemble
-			ensemble = new Ensemble(model);
+			ensemble = new Ensemble(model.toString());
+			features = ensemble.getFeatures();
 		}
 		catch(Exception ex)
 		{
-			System.out.println("Error in LambdaMART::load(): " + ex.toString());
+			throw RankLibError.create("Error in LambdaMART::load(): ", ex);
 		}
 	}
+
 	public void printParameters()
 	{
 		PRINTLN("No. of trees: " + nTrees);
 		PRINTLN("No. of leaves: " + nTreeLeaves);
 		PRINTLN("No. of threshold candidates: " + nThreshold);
+		PRINTLN("Min leaf support: " + minLeafSupport);
 		PRINTLN("Learning rate: " + learningRate);
 		PRINTLN("Stop early: " + nRoundToStopEarly + " rounds without performance gain on validation data");		
 	}	
+
 	public String name()
 	{
 		return "LambdaMART";
 	}
+
 	public Ensemble getEnsemble()
 	{
 		return ensemble;
@@ -390,97 +360,98 @@ public class LambdaMART extends Ranker {
 	
 	protected void computePseudoResponses()
 	{
+		Arrays.fill(pseudoResponses, 0F);
+		Arrays.fill(weights, 0);
 		MyThreadPool p = MyThreadPool.getInstance();
 		if(p.size() == 1)//single-thread
 			computePseudoResponses(0, samples.size()-1, 0);
-		
-		//multi-threading
-		List<LambdaComputationWorker> workers = new ArrayList<LambdaMART.LambdaComputationWorker>();
-		//divide the entire dataset into chunks of equal size for each worker thread
-		int chunk = (samples.size()-1)/p.size() + 1;
-		int current = 0;
-		for(int i=0;i<p.size();i++)
+		else //multi-threading
 		{
-			int start = i*chunk;
-			int end = start + chunk - 1;
-			if(end >= samples.size())
-				end = samples.size()-1;
+			List<LambdaComputationWorker> workers = new ArrayList<LambdaMART.LambdaComputationWorker>();
+			//divide the entire dataset into chunks of equal size for each worker thread
+			int[] partition = p.partition(samples.size());
+			int current = 0;
+			for(int i=0;i<partition.length-1;i++)
+			{
+				//execute the worker
+				LambdaComputationWorker wk = new LambdaComputationWorker(this, partition[i], partition[i+1]-1, current); 
+				workers.add(wk);//keep it so we can get back results from it later on
+				p.execute(wk);
+				
+				if(i < partition.length-2)
+					for(int j=partition[i]; j<=partition[i+1]-1;j++)
+						current += samples.get(j).size();
+			}
 			
-			//execute the worker
-			LambdaComputationWorker wk = new LambdaComputationWorker(this, start, end, current); 
-			workers.add(wk);//keep it so we can get back results from it later on
-			p.execute(wk);
-			
-			if(i < chunk-1)
-				for(int j=start; j<=end;j++)
-					current += samples.get(j).size();
+			//wait for all workers to complete before we move on to the next stage
+			p.await();
 		}
-		
-		//wait for all workers to complete before we move on to the next stage
-		p.await();
 	}
+
 	protected void computePseudoResponses(int start, int end, int current)
 	{
-		//compute the lambda for each document (aka "pseudo response")
+		int cutoff = scorer.getK();
+		//compute the lambda for each document (a.k.a "pseudo response")
 		for(int i=start;i<=end;i++)
 		{
-			RankList r = samples.get(i);				
-			float[][] changes = computeMetricChange(i, current);			
-			double[] lambdas = new double[r.size()];
-			double[] weights = new double[r.size()];
-			Arrays.fill(lambdas, 0);
-			Arrays.fill(weights, 0);
-			
-			for(int j=0;j<r.size();j++)
+			RankList orig = samples.get(i);			
+			int[] idx = MergeSorter.sort(modelScores, current, current+orig.size()-1, false);
+			RankList rl = new RankList(orig, idx, current);
+			double[][] changes = scorer.swapChange(rl);
+			//NOTE: j, k are indices in the sorted (by modelScore) list, not the original
+			// ==> need to map back with idx[j] and idx[k] 
+			for(int j=0;j<rl.size();j++)
 			{
-				DataPoint p1 = r.get(j);
-				for(int k=0;k<r.size();k++)
+				DataPoint p1 = rl.get(j);
+				int mj = idx[j];
+				for(int k=0;k<rl.size();k++)
 				{
-					if(j == k)
-						continue;
-					
-					DataPoint p2 = r.get(k);
-					double deltaNDCG = Math.abs(changes[j][k]);
-					
+					if(j > cutoff && k > cutoff)//swaping these pair won't result in any change in target measures since they're below the cut-off point
+						break;
+					DataPoint p2 = rl.get(k);
+					int mk = idx[k];
 					if(p1.getLabel() > p2.getLabel())
 					{
-						double rho = 1.0 / (1 + Math.exp(modelScores[current+j] - modelScores[current+k]));
-						double lambda = rho * deltaNDCG;
-						lambdas[j] += lambda;
-						lambdas[k] -= lambda;
-						double delta = rho * (1.0 - rho) * deltaNDCG;
-						weights[j] += delta;
-						weights[k] += delta;
+						double deltaNDCG = Math.abs(changes[j][k]);
+						if(deltaNDCG > 0)
+						{
+							double rho = 1.0 / (1 + Math.exp(modelScores[mj] - modelScores[mk]));
+							double lambda = rho * deltaNDCG;
+							pseudoResponses[mj] += lambda;
+							pseudoResponses[mk] -= lambda;
+							double delta = rho * (1.0 - rho) * deltaNDCG;
+							weights[mj] += delta;
+							weights[mk] += delta;
+						}
 					}
 				}
 			}
-			
-			for(int j=0;j<r.size();j++)
-			{
-				pseudoResponses[current+j] = (float)lambdas[j];
-				r.get(j).setCached(weights[j]);
-			}
-			current += r.size();
+			current += orig.size();
 		}
 	}
+
 	protected void updateTreeOutput(RegressionTree rt)
 	{
 		List<Split> leaves = rt.leaves();
 		for(int i=0;i<leaves.size();i++)
 		{
-			float s1 = 0.0F;
-			float s2 = 0.0F;
+			float s1 = 0F;
+			float s2 = 0F;
 			Split s = leaves.get(i);
 			int[] idx = s.getSamples();
 			for(int j=0;j<idx.length;j++)
 			{
 				int k = idx[j];
 				s1 += pseudoResponses[k];
-				s2 += martSamples[k].getCached();
+				s2 += weights[k];
 			}
-			s.setOutput(s1/s2);
+			if(s2 == 0)
+				s.setOutput(0);
+			else
+				s.setOutput(s1/s2);
 		}
 	}
+
 	protected int[] sortSamplesByFeature(DataPoint[] samples, int fid)
 	{
 		double[] score = new double[samples.length];
@@ -489,6 +460,7 @@ public class LambdaMART extends Ranker {
 		int[] idx = MergeSorter.sort(score, true); 
 		return idx;
 	}
+
 	/**
 	 * This function is equivalent to the inherited function rank(...), but it uses the cached model's outputs instead of computing them from scratch.
 	 * @param rankListIndex
@@ -498,61 +470,97 @@ public class LambdaMART extends Ranker {
 	protected RankList rank(int rankListIndex, int current)
 	{
 		RankList orig = samples.get(rankListIndex);	
-		float[] scores = new float[orig.size()];
+		double[] scores = new double[orig.size()];
 		for(int i=0;i<scores.length;i++)
 			scores[i] = modelScores[current+i];
 		int[] idx = MergeSorter.sort(scores, false);
 		return new RankList(orig, idx);
 	}
+
 	protected float computeModelScoreOnTraining() 
 	{
-		float s = 0;
-		int current = 0;		
-		for(int i=0;i<samples.size();i++)
+		/*float s = 0;
+		int current = 0;	
+		MyThreadPool p = MyThreadPool.getInstance();
+		if(p.size() == 1)//single-thread
+			s = computeModelScoreOnTraining(0, samples.size()-1, current);
+		else
 		{
-			s += scorer.score(rank(i, current));
-			current += samples.get(i).size();
-		}
+			List<Worker> workers = new ArrayList<Worker>();
+			//divide the entire dataset into chunks of equal size for each worker thread
+			int[] partition = p.partition(samples.size());
+			for(int i=0;i<partition.length-1;i++)
+			{
+				//execute the worker
+				Worker wk = new Worker(this, partition[i], partition[i+1]-1, current);
+				workers.add(wk);//keep it so we can get back results from it later on
+				p.execute(wk);
+				
+				if(i < partition.length-2)
+					for(int j=partition[i]; j<=partition[i+1]-1;j++)
+						current += samples.get(j).size();
+			}		
+			//wait for all workers to complete before we move on to the next stage
+			p.await();
+			for(int i=0;i<workers.size();i++)
+				s += workers.get(i).score;
+		}*/
+		float s = computeModelScoreOnTraining(0, samples.size()-1, 0);
 		s = s / samples.size();
 		return s;
 	}
+
+	protected float computeModelScoreOnTraining(int start, int end, int current) 
+	{
+		float s = 0;
+		int c = current;
+
+		for(int i=start;i<=end;i++)
+		{
+			s += scorer.score(rank(i, c));
+			c += samples.get(i).size();
+		}
+		return s;
+	}
+
 	protected float computeModelScoreOnValidation() 
 	{
+		/*float score = 0;
+		MyThreadPool p = MyThreadPool.getInstance();
+		if(p.size() == 1)//single-thread
+			score = computeModelScoreOnValidation(0, validationSamples.size()-1);
+		else
+		{
+			List<Worker> workers = new ArrayList<Worker>();
+			//divide the entire dataset into chunks of equal size for each worker thread
+			int[] partition = p.partition(validationSamples.size());
+			for(int i=0;i<partition.length-1;i++)
+			{
+				//execute the worker
+				Worker wk = new Worker(this, partition[i], partition[i+1]-1);
+				workers.add(wk);//keep it so we can get back results from it later on
+				p.execute(wk);
+			}		
+			//wait for all workers to complete before we move on to the next stage
+			p.await();
+			for(int i=0;i<workers.size();i++)
+				score += workers.get(i).score;
+		}*/
+		float score = computeModelScoreOnValidation(0, validationSamples.size()-1);
+		return score/validationSamples.size();
+	}
+
+	protected float computeModelScoreOnValidation(int start, int end) 
+	{
 		float score = 0;
-		for(int i=0;i<validationSamples.size();i++)
+		for(int i=start;i<=end;i++)
 		{
 			int[] idx = MergeSorter.sort(modelScoresOnValidation[i], false);
 			score += scorer.score(new RankList(validationSamples.get(i), idx));
 		}
-		return score/validationSamples.size();
+		return score;
 	}
-	/**
-	 * Compute the change (in whatever specified metric) for swapping each pair of documents in a rank list. 
-	 * @param rankListIndex
-	 * @param current
-	 * @return
-	 */
-	protected float[][] computeMetricChange(int rankListIndex, int current)
-	{
-		RankList orig = samples.get(rankListIndex);		
-		float[] scores = new float[orig.size()];
-		for(int i=0;i<scores.length;i++)
-			scores[i] = modelScores[current+i];
-		
-		int[] idx = MergeSorter.sort(scores, false);
-		RankList rl = new RankList(orig, idx);
-		float[][] changes = new float[orig.size()][];
-		for(int i=0;i<changes.length;i++)
-			changes[i] = new float[orig.size()];
-		
-		double[][] c = scorer.swapChange(rl);
-		for(int i=0;i<changes.length;i++)
-		{
-			for(int j=0;j<changes.length;j++)
-				changes[idx[i]][idx[j]] = (float)c[i][j];
-		}
-		return changes;
-	}
+	
 	protected void sortSamplesByFeature(int fStart, int fEnd)
 	{
 		for(int i=fStart;i<=fEnd; i++)
@@ -564,23 +572,26 @@ public class LambdaMART extends Ranker {
 		LambdaMART ranker = null;
 		int start = -1;
 		int end = -1;
+
 		SortWorker(LambdaMART ranker, int start, int end)
 		{
 			this.ranker = ranker;
 			this.start = start;
 			this.end = end;
 		}		
+
 		public void run()
 		{
-			//System.out.println("Thread [" + start + "/" + end + "]");
 			ranker.sortSamplesByFeature(start, end);
 		}
 	}
+
 	class LambdaComputationWorker implements Runnable {
 		LambdaMART ranker = null;
 		int rlStart = -1;
 		int rlEnd = -1;
 		int martStart = -1;
+
 		LambdaComputationWorker(LambdaMART ranker, int rlStart, int rlEnd, int martStart)
 		{
 			this.ranker = ranker;
@@ -588,9 +599,46 @@ public class LambdaMART extends Ranker {
 			this.rlEnd = rlEnd;
 			this.martStart = martStart;
 		}		
+
 		public void run()
 		{
 			ranker.computePseudoResponses(rlStart, rlEnd, martStart);
+		}
+	}
+
+	class Worker implements Runnable {
+		LambdaMART ranker = null;
+		int rlStart = -1;
+		int rlEnd = -1;
+		int martStart = -1;
+		int type = -1;
+		
+		//compute score on validation
+		float score = 0;
+		
+		Worker(LambdaMART ranker, int rlStart, int rlEnd)
+		{
+			type = 3;
+			this.ranker = ranker;
+			this.rlStart = rlStart;
+			this.rlEnd = rlEnd;
+		}
+
+		Worker(LambdaMART ranker, int rlStart, int rlEnd, int martStart)
+		{
+			type = 4;
+			this.ranker = ranker;
+			this.rlStart = rlStart;
+			this.rlEnd = rlEnd;
+			this.martStart = martStart;
+		}
+
+		public void run()
+		{
+			if(type == 4)
+				score = ranker.computeModelScoreOnTraining(rlStart, rlEnd, martStart);
+			else if(type == 3)
+				score = ranker.computeModelScoreOnValidation(rlStart, rlEnd);
 		}
 	}
 }

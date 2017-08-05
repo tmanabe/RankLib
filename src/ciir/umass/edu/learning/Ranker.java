@@ -1,5 +1,6 @@
+
 /*===============================================================================
- * Copyright (c) 2010-2012 University of Massachusetts.  All Rights Reserved.
+ * Copyright (c) 2010-2015 University of Massachusetts.  All Rights Reserved.
  *
  * Use of the RankLib package is subject to the terms of the software license set 
  * forth in the LICENSE file included with this software, and also available at
@@ -9,23 +10,34 @@
 
 package ciir.umass.edu.learning;
 
+import ciir.umass.edu.metric.MetricScorer;
+import ciir.umass.edu.utilities.FileUtils;
+import ciir.umass.edu.utilities.MergeSorter;
+
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 
-import ciir.umass.edu.learning.RankList;
-import ciir.umass.edu.metric.MetricScorer;
-import ciir.umass.edu.utilities.FileUtils;
-import ciir.umass.edu.utilities.MergeSorter;
+import java.util.Set;
+
+//- Some Java 7 file utilities for creating directories
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.nio.file.attribute.FileAttribute;
+import java.nio.file.attribute.PosixFilePermission;
+import java.nio.file.attribute.PosixFilePermissions;
+
+
 
 /**
  * @author vdang
  * 
  * This class implements the generic Ranker interface. Each ranking algorithm implemented has to extend this class. 
  */
-public class Ranker {
+public abstract class Ranker {
 	public static boolean verbose = true;
 
 	protected List<RankList> samples = new ArrayList<RankList>();//training samples
@@ -35,37 +47,37 @@ public class Ranker {
 	protected double bestScoreOnValidationData = 0.0;
 	
 	protected List<RankList> validationSamples = null;
-	protected List<RankList> testSamples = null;
 	
-	public Ranker()
+	protected Ranker()
 	{
-		
+
 	}
-	
-	public Ranker(List<RankList> samples, int[] features)
+	protected Ranker(List<RankList> samples, int[] features, MetricScorer scorer)
 	{
 		this.samples = samples;
 		this.features = features;
+		this.scorer = scorer;
 	}
 	
 	//Utility functions
-	public void set(List<RankList> samples, int[] features)
+	public void setTrainingSet(List<RankList> samples)
 	{
 		this.samples = samples;
-		this.features = features;
+	
+	}
+	public void setFeatures(int[] features)
+	{
+		this.features = features;	
 	}
 	public void setValidationSet(List<RankList> samples)
 	{
 		this.validationSamples = samples;
 	}
-	public void setTestSet(List<RankList> samples)
-	{
-		this.testSamples = samples;
-	}
-	public void set(MetricScorer scorer)
+	public void setMetricScorer(MetricScorer scorer)
 	{
 		this.scorer = scorer;
 	}
+	
 	public double getScoreOnTrainingData()
 	{
 		return scoreOnTrainingData;
@@ -74,6 +86,7 @@ public class Ranker {
 	{
 		return bestScoreOnValidationData;
 	}
+
 	public int[] getFeatures()
 	{
 		return features;
@@ -87,6 +100,7 @@ public class Ranker {
 		int[] idx = MergeSorter.sort(scores, false);
 		return new RankList(rl, idx);
 	}
+
 	public List<RankList> rank(List<RankList> l)
 	{
 		List<RankList> ll = new ArrayList<RankList>();
@@ -94,22 +108,41 @@ public class Ranker {
 			ll.add(rank(l.get(i)));
 		return ll;
 	}
+
+        //- Create the model file directory to write models into if not already there
 	public void save(String modelFile) 
 	{
+              // Determine if the directory to write to exists.  If not, create it.
+              Path parentPath = Paths.get(modelFile).toAbsolutePath().getParent();
+            
+              // Create the directory if it doesn't exist. Give it 755 perms
+                if (Files.notExists (parentPath)) {
+                     try {
+                          Set<PosixFilePermission> perms = PosixFilePermissions.fromString ("rwxr-xr-x");
+                          FileAttribute<Set<PosixFilePermission>> attr = PosixFilePermissions.asFileAttribute (perms);
+                          Path outputDir = Files.createDirectory (parentPath, attr);
+                     }
+                     catch (Exception e) {
+                          System.out.println ("Error creating kcv model file directory " + modelFile);
+		     }         
+                }
+            
 		FileUtils.write(modelFile, "ASCII", model());
 	}
 	
-	public void PRINT(String msg)
+	protected void PRINT(String msg)
 	{
 		if(verbose)
 			System.out.print(msg);
 	}
-	public void PRINTLN(String msg)
+
+	protected void PRINTLN(String msg)
 	{
 		if(verbose)
 			System.out.println(msg);
 	}
-	public void PRINT(int[] len, String[] msgs)
+
+	protected void PRINT(int[] len, String[] msgs)
 	{
 		if(verbose)
 		{
@@ -125,18 +158,18 @@ public class Ranker {
 			}
 		}
 	}
-	public void PRINTLN(int[] len, String[] msgs)
+	protected void PRINTLN(int[] len, String[] msgs)
 	{
 		PRINT(len, msgs);
 		PRINTLN("");
 	}
-	public void PRINTTIME()
+	protected void PRINTTIME()
 	{
 		DateFormat dateFormat = new SimpleDateFormat("MM/dd HH:mm:ss");
 		Date date = new Date();
 		System.out.println(dateFormat.format(date));
 	}
-	public void PRINT_MEMORY_USAGE()
+	protected void PRINT_MEMORY_USAGE()
 	{
 		System.out.println("***** " + Runtime.getRuntime().freeMemory() + " / " + Runtime.getRuntime().maxMemory());
 	}
@@ -146,39 +179,21 @@ public class Ranker {
 		for(int j=0;j<source.length;j++)
 			target[j] = source[j];
 	}
+	
 	/**
 	 * HAVE TO BE OVER-RIDDEN IN SUB-CLASSES
 	 */
-	public void init()
-	{
-	}
-	public void learn()
-	{
-	}
+	public abstract void init();
+	public abstract void learn();
 	public double eval(DataPoint p)
 	{
 		return -1.0;
 	}
-	public Ranker clone()
-	{
-		return null;
-	}
-	public String toString()
-	{
-		return "[Not yet implemented]";
-	}
-	public String model()
-	{
-		return "[Not yet implemented]";
-	}
-	public void load(String fn)
-	{
-	}
-	public void printParameters()
-	{
-	}
-	public String name()
-	{
-		return "";
-	}
+
+  public abstract Ranker createNew();
+  public abstract String toString();
+  public abstract String model();
+  public abstract void loadFromString(String fullText);
+  public abstract String name();
+  public abstract void printParameters();
 }

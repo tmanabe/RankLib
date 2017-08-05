@@ -9,45 +9,49 @@
 
 package ciir.umass.edu.metric;
 
+import ciir.umass.edu.learning.RankList;
+import ciir.umass.edu.utilities.RankLibError;
+import ciir.umass.edu.utilities.Sorter;
+
 import java.io.BufferedReader;
 import java.io.FileInputStream;
+import java.io.IOException;
 import java.io.InputStreamReader;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Hashtable;
+import java.util.HashMap;
 import java.util.List;
-
-import ciir.umass.edu.learning.RankList;
-import ciir.umass.edu.utilities.SimpleMath;
-import ciir.umass.edu.utilities.Sorter;
 
 /**
  * @author vdang
  */
-public class NDCGScorer extends MetricScorer {
+public class NDCGScorer extends DCGScorer {
 	
-	public Hashtable<String, Double>  idealGains = null;
+	protected HashMap<String, Double>  idealGains = null;
 	
 	public NDCGScorer()
 	{
-		this.k = 10;	
+		super();
+		idealGains = new HashMap<>();
 	}
 	public NDCGScorer(int k)
 	{
-		this.k = k;
+		super(k);
+		idealGains = new HashMap<>();
 	}
-	public MetricScorer clone()
+	public MetricScorer copy()
 	{
 		return new NDCGScorer();
 	}
 	public void loadExternalRelevanceJudgment(String qrelFile)
 	{
-		idealGains = new Hashtable<String, Double>();
-		try {
+		//Queries with external relevance judgment will have their cached ideal gain value overridden 
+		try (BufferedReader in = new BufferedReader(new InputStreamReader(new FileInputStream(qrelFile))))
+		{
 			String content = "";
-			BufferedReader in = new BufferedReader(new InputStreamReader(new FileInputStream(qrelFile)));
 			String lastQID = "";
 			List<Integer> rel = new ArrayList<Integer>();
+			int nQueries = 0;
 			while((content = in.readLine()) != null)
 			{
 				content = content.trim();
@@ -56,29 +60,36 @@ public class NDCGScorer extends MetricScorer {
 				String[] s = content.split(" ");
 				String qid = s[0].trim();
 				//String docid = s[2].trim();
-				int label = Integer.parseInt(s[3].trim());
+				int label = (int) Math.rint(Double.parseDouble(s[3].trim()));
 				if(lastQID.compareTo("")!=0 && lastQID.compareTo(qid)!=0)
 				{
-					double ideal = getIdealDCG(rel, k);
+					int size = (rel.size() > k) ? k : rel.size();
+					int[] r = new int[rel.size()];
+					for(int i=0;i<rel.size();i++)
+						r[i] = rel.get(i);
+					double ideal = getIdealDCG(r, size);
 					idealGains.put(lastQID, ideal);
-					rel.clear();						
+					rel.clear();
+					nQueries++;
 				}
 				lastQID = qid;
 				rel.add(label);
 			}
 			if(rel.size() > 0)
 			{
-				double ideal = getIdealDCG(rel, k);
+				int size = (rel.size() > k) ? k : rel.size();
+				int[] r = new int[rel.size()];
+				for(int i=0;i<rel.size();i++)
+					r[i] = rel.get(i);
+				double ideal = getIdealDCG(r, size);
 				idealGains.put(lastQID, ideal);
 				rel.clear();
+				nQueries++;
 			}
-			in.close();
-			System.out.println("Relevance judgment file loaded. [#q=" + idealGains.keySet().size() + "]");
+			System.out.println("Relevance judgment file loaded. [#q=" + nQueries + "]");
+		} catch (IOException ex) {
+			throw RankLibError.create("Error in NDCGScorer::loadExternalRelevanceJudgment(): ", ex);
 		}
-		catch(Exception ex)
-		{
-			System.out.println("Error in NDCGScorer::loadExternalRelevanceJudgment(): " + ex.toString());
-		}		
 	}
 	
 	/**
@@ -87,77 +98,44 @@ public class NDCGScorer extends MetricScorer {
 	 */
 	public double score(RankList rl)
 	{
-		List<Integer> rel = new ArrayList<Integer>();
-		for(int i=0;i<rl.size();i++)
-			rel.add((int)rl.get(i).getLabel());
 		if(rl.size() == 0)
-			return -1.0;
+			return 0;
 
+		int size = k;
+		if(k > rl.size() || k <= 0)
+			size = rl.size();
 		
-		double d2 = 0;
-		if(idealGains != null)
-		{
-			Double d = idealGains.get(rl.getID());
-			if(d != null)
-				d2 = d.doubleValue();
-		}
+		int[] rel = getRelevanceLabels(rl);
+		
+		double ideal = 0;
+		Double d = idealGains.get(rl.getID());
+		if(d != null)
+			ideal = d;
 		else
-			d2 = getIdealDCG(rel, k);
-		if(d2 <= 0.0)//I mean precisely "="
+		{
+			ideal = getIdealDCG(rel, size);
+			idealGains.put(rl.getID(), ideal);
+		}
+		
+		if(ideal <= 0.0)//I mean precisely "="
 			return 0.0;
-		return getDCG(rel, k)/d2;
-	}
-	public String name()
-	{
-		return "NDCG@"+k;
-	}
-	
-	private double getDCG(List<Integer> rel, int k)
-	{
-		int size = k;
-		if(k > rel.size() || k <= 0)
-			size = rel.size();
 		
-		double dcg = 0.0;
-		for(int i=1;i<=size;i++)
-		{
-			dcg += (Math.pow(2.0, rel.get(i-1))-1.0)/SimpleMath.logBase2(i+1);
-		}
-		return dcg;
-	}
-	private double getIdealDCG(List<Integer> rel, int k)
-	{
-		int size = k;
-		if(k > rel.size() || k <= 0)
-			size = rel.size();
-		
-		int[] idx = Sorter.sort(rel, false);
-		double dcg = 0.0;
-		for(int i=1;i<=size;i++)
-		{
-			dcg += (Math.pow(2.0, rel.get(idx[i-1]))-1.0)/SimpleMath.logBase2(i+1);
-		}
-		return dcg;
+		return getDCG(rel, size)/ideal;
 	}
 	public double[][] swapChange(RankList rl)
 	{
 		int size = (rl.size() > k) ? k : rl.size();
 		//compute the ideal ndcg
-		List<Integer> rel = new ArrayList<Integer>();
-		for(int t=0;t<rl.size();t++)
-			rel.add((int)rl.get(t).getLabel());
-		
-		double d2 = 0;
-		if(idealGains != null)
-		{
-			Double d = idealGains.get(rl.getID());
-			if(d != null)
-				d2 = d.doubleValue();
-		}
+		int[] rel = getRelevanceLabels(rl);
+		double ideal = 0;
+		Double d = idealGains.get(rl.getID());
+		if(d != null)
+			ideal = d;
 		else
-			d2 = getIdealDCG(rel, size);
-			//double d2 = getIdealDCG(rel, rl.size());//ignore K, compute changes from the entire ranked list
-
+		{
+			ideal = getIdealDCG(rel, size);
+			//idealGains.put(rl.getID(), ideal);//DO *NOT* do caching here. It's not thread-safe.
+		}
 		
 		double[][] changes = new double[rl.size()][];
 		for(int i=0;i<rl.size();i++)
@@ -167,18 +145,23 @@ public class NDCGScorer extends MetricScorer {
 		}
 		
 		for(int i=0;i<size;i++)
-		//for(int i=0;i<rl.size()-1;i++)//ignore K, compute changes from the entire ranked list
-		{
-			int p1 = i+1;
 			for(int j=i+1;j<rl.size();j++)
-			{
-				if(d2 > 0)
-				{
-					int p2 = j + 1;
-					changes[j][i] = changes[i][j] = (1.0/SimpleMath.logBase2(p1+1) - 1.0/SimpleMath.logBase2(p2+1)) * (Math.pow(2.0, rel.get(i)) - Math.pow(2.0, rel.get(j))) / d2;
-				}
-			}
-		}
+				if(ideal > 0)
+					changes[j][i] = changes[i][j] = (discount(i) - discount(j)) * (gain(rel[i]) - gain(rel[j])) / ideal;
+
 		return changes;
+	}
+	public String name()
+	{
+		return "NDCG@"+k;
+	}
+	
+	private double getIdealDCG(int[] rel, int topK)
+	{
+		int[] idx = Sorter.sort(rel, false);
+		double dcg = 0;
+		for(int i=0;i<topK;i++)
+			dcg += gain(rel[idx[i]]) * discount(i);
+		return dcg;
 	}
 }

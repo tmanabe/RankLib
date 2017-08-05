@@ -41,7 +41,7 @@ public class PrecisionScorer extends MetricScorer {
 		}
 		return ((double)count)/size;
 	}
-	public MetricScorer clone()
+	public MetricScorer copy()
 	{
 		return new PrecisionScorer();
 	}
@@ -51,11 +51,11 @@ public class PrecisionScorer extends MetricScorer {
 	}
 	public double[][] swapChange(RankList rl)
 	{
-		int relCount = 0;
 		int size = (rl.size() > k) ? k : rl.size();
+		/*int relCount = 0;
 		for(int i=0;i<size;i++)
 			if(rl.get(i).getLabel() > 0.0)//relevant
-				relCount++;
+				relCount++;*/
 		
 		double[][] changes = new double[rl.size()][];
 		for(int i=0;i<rl.size();i++)

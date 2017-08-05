@@ -119,10 +119,9 @@ public class ExpressionEvaluator {
 					else
 						foundOpen = true;
 				}
-				if(foundOpen == false)
+				if(!foundOpen)
 				{
-					System.out.println("Error: Invalid expression: \"" + expression + "\". Parentheses mismatched.");
-					System.exit(1);
+					throw RankLibError.create("Error: Invalid expression: \"" + expression + "\". Parentheses mismatched.");
 				}
 			}
 			else if(isOperator(token))
@@ -175,25 +174,22 @@ public class ExpressionEvaluator {
 				{
 					if(j == expression.length())
 					{
-						System.out.println("Error: Invalid expression: \"" + expression + "\". Function specification requires parentheses.");
-						System.exit(1);
+						throw RankLibError.create("Error: Invalid expression: \"" + expression + "\". Function specification requires parentheses.");
 					}
 					if(expression.charAt(j) != '(')
 					{
-						System.out.println("Error: Invalid expression: \"" + expression + "\". Function specification requires parentheses.");
-						System.exit(1);
+						throw RankLibError.create("Error: Invalid expression: \"" + expression + "\". Function specification requires parentheses.");
 					}
 					op.push(token);
 				}
 				else//operand
 				{
 					try {
-						double v = Double.parseDouble(token);
+						Double.parseDouble(token);						
 					}
 					catch(Exception ex)
 					{
-						System.out.println("Error: \"" + token + "\" is not a valid token.");
-						System.exit(1);
+						throw RankLibError.create("Error: \"" + token + "\" is not a valid token.");
 					}
 					output.enqueue(token);
 				}
@@ -205,8 +201,7 @@ public class ExpressionEvaluator {
 			String last = op.pop();
 			if(last.compareTo("(") == 0)
 			{
-				System.out.println("Error: Invalid expression: \"" + expression + "\". Parentheses mismatched.");			
-				System.exit(1);
+				throw RankLibError.create("Error: Invalid expression: \"" + expression + "\". Parentheses mismatched.");
 			}
 			output.enqueue(last);
 		}
@@ -264,8 +259,7 @@ public class ExpressionEvaluator {
 					{
 						if(eval[cp-1] < 0)
 						{
-							System.out.println("Error: expression " + expression + " involves taking log of a non-positive number");
-							System.exit(1);
+							throw RankLibError.create("Error: expression " + expression + " involves taking log of a non-positive number");
 						}
 						v = Math.log10(eval[cp-1]);
 					}
@@ -273,8 +267,7 @@ public class ExpressionEvaluator {
 					{
 						if(eval[cp-1] < 0)
 						{
-							System.out.println("Error: expression " + expression + " involves taking log of a non-positive number");
-							System.exit(1);
+							throw RankLibError.create("Error: expression " + expression + " involves taking log of a non-positive number");
 						}
 						v = Math.log(eval[cp-1]);
 					}
@@ -282,8 +275,7 @@ public class ExpressionEvaluator {
 					{
 						if(eval[cp-1] < 0)
 						{
-							System.out.println("Error: expression " + expression + " involves taking log of a non-positive number");
-							System.exit(1);
+							throw RankLibError.create("Error: expression " + expression + " involves taking log of a non-positive number");
 						}
 						v = Math.log(eval[cp-1])/Math.log(2);
 					}
@@ -293,8 +285,7 @@ public class ExpressionEvaluator {
 					{
 						if(eval[cp-1] < 0)
 						{
-							System.out.println("Error: expression " + expression + " involves taking square root of a negative number");
-							System.exit(1);
+							throw RankLibError.create("Error: expression " + expression + " involves taking square root of a negative number");
 						}
 						v = Math.sqrt(eval[cp-1]);
 					}
@@ -307,15 +298,12 @@ public class ExpressionEvaluator {
 			}
 			if(cp != 1)
 			{
-				System.out.println("Error: invalid expression: " + expression);
-				System.exit(1);
+				throw RankLibError.create("Error: invalid expression: " + expression);
 			}
 		}
 		catch(Exception ex)
 		{
-			System.out.println("Unknown error in ExpressionEvaluator::eval() with \"" + expression + "\"");
-			System.out.println(ex.toString());
-			System.exit(1);
+			throw RankLibError.create("Unknown error in ExpressionEvaluator::eval() with \"" + expression + "\"", ex);
 		}
 		return eval[cp-1];
 	}
