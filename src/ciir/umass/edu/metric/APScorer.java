@@ -9,13 +9,15 @@
 
 package ciir.umass.edu.metric;
 
+import ciir.umass.edu.learning.RankList;
+import ciir.umass.edu.utilities.RankLibError;
+
 import java.io.BufferedReader;
 import java.io.FileInputStream;
+import java.io.IOException;
 import java.io.InputStreamReader;
 import java.util.Arrays;
-import java.util.Hashtable;
-
-import ciir.umass.edu.learning.RankList;
+import java.util.HashMap;
 
 /**
  * @author vdang
@@ -25,24 +27,21 @@ public class APScorer extends MetricScorer {
 	//This class computes MAP from the *WHOLE* ranked list. "K" will be completely ignored.
 	//The reason is, if you want MAP@10, you really should be using NDCG@10 or ERR@10 instead.
 	
-	public Hashtable<String, Integer> relDocCount = null;
+	public HashMap<String, Integer> relDocCount = null;
 	
 	public APScorer()
 	{
 		this.k = 0;//consider the whole list
 	}
-	public MetricScorer clone()
+	public MetricScorer copy()
 	{
 		return new APScorer();
 	}
 	public void loadExternalRelevanceJudgment(String qrelFile)
 	{
-		relDocCount = new Hashtable<String, Integer>();
-		try {
+		relDocCount = new HashMap<>();
+		try (BufferedReader in = new BufferedReader(new InputStreamReader(new FileInputStream(qrelFile)))) {
 			String content = "";
-			BufferedReader in = new BufferedReader(new InputStreamReader(new FileInputStream(qrelFile)));
-			String lastQID = "";
-			int rdCount = 0;//relevant document count (per query)
 			while((content = in.readLine()) != null)
 			{
 				content = content.trim();
@@ -51,23 +50,18 @@ public class APScorer extends MetricScorer {
 				String[] s = content.split(" ");
 				String qid = s[0].trim();
 				//String docid = s[2].trim();
-				int label = Integer.parseInt(s[3].trim());
-				if(lastQID.compareTo("")!=0 && lastQID.compareTo(qid)!=0)
-				{
-					relDocCount.put(lastQID, rdCount);
-					rdCount = 0;	
+				int label = (int) Math.rint(Double.parseDouble(s[3].trim()));
+				if(label > 0) {
+					int prev = relDocCount.getOrDefault(qid, 0);
+					relDocCount.put(qid, prev+1);
 				}
-				lastQID = qid;
-				if(label > 0)
-					rdCount++;
 			}
-			relDocCount.put(lastQID, rdCount);
-			in.close();
-			System.out.println("Relevance judgment file loaded. [#q=" + relDocCount.keySet().size() + "]");
+
+			System.out.println("Relevance judgment file loaded. [#q=" + relDocCount.size() + "]");
 		}
-		catch(Exception ex)
+		catch(IOException ex)
 		{
-			System.out.println("Error in APScorer::loadExternalRelevanceJudgment(): " + ex.toString());
+			throw RankLibError.create("Error in APScorer::loadExternalRelevanceJudgment(): ", ex);
 		}		
 	}
 	/**
@@ -93,7 +87,7 @@ public class APScorer extends MetricScorer {
 		{
 			Integer it = relDocCount.get(rl.getID());
 			if(it != null)
-				rdCount = it.intValue();
+				rdCount = it;
 		}
 		else //no qrel-file specified, we can only use the #relevant-docs in the training file
 			rdCount = count;
@@ -128,11 +122,11 @@ public class APScorer extends MetricScorer {
 		{
 			Integer it = relDocCount.get(rl.getID());
 			if(it != null)
-				rdCount = it.intValue();
+				rdCount = it;
 		}
 		else
 			rdCount = count;
-			
+
 		double[][] changes = new double[rl.size()][];
 		for(int i=0;i<rl.size();i++)
 		{
@@ -154,7 +148,7 @@ public class APScorer extends MetricScorer {
 					change += ((double)((relCount[i]+diff)*labels[j] - relCount[i]*labels[i])) / (i+1);
 					for(int k=i+1;k<=j-1;k++)
 						if(labels[k] > 0)
-							change += ((double)(relCount[k]+diff)) / (k+1);
+							change += ((double)diff) / (k+1);
 					change += ((double)(-relCount[j]*diff)) / (j+1);
 					//It is equivalent to:  change += ((double)(relCount[j]*labels[i] - relCount[j]*labels[j])) / (j+1);
 				}

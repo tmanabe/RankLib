@@ -1,5 +1,5 @@
 /*===============================================================================
- * Copyright (c) 2010-2012 University of Massachusetts.  All Rights Reserved.
+ * Copyright (c) 2010-2016 University of Massachusetts.  All Rights Reserved.
  *
  * Use of the RankLib package is subject to the terms of the software license set 
  * forth in the LICENSE file included with this software, and also available at
@@ -9,267 +9,441 @@
 
 package ciir.umass.edu.features;
 
-import java.io.BufferedReader;
-import java.io.FileInputStream;
-import java.io.InputStreamReader;
+import ciir.umass.edu.learning.DataPoint;
+import ciir.umass.edu.learning.DenseDataPoint;
+import ciir.umass.edu.learning.RankList;
+import ciir.umass.edu.learning.SparseDataPoint;
+import ciir.umass.edu.utilities.FileUtils;
+import ciir.umass.edu.utilities.RankLibError;
+
+import java.io.*;
 import java.util.ArrayList;
-import java.util.Hashtable;
+import java.util.Collections;
 import java.util.List;
 
-import ciir.umass.edu.learning.DataPoint;
-import ciir.umass.edu.learning.RankList;
-
-/**
- * @author vdang
- * 
- * Managing training samples and features.
- */
 public class FeatureManager {
 
-	private Hashtable<String, Integer> featureMap = new Hashtable<String, Integer>();
-	private String[] fnames = null;
+	/**
+	 * @param args
+	 */
+	public static void main(String[] args) {
+		
+		List<String> rankingFiles = new ArrayList<>();
+		String outputDir = "";
+		boolean shuffle = false;
+		int nFold = 0;
+		float tvs = -1;//train-validation split in each fold
+		
+		if(args.length < 3)
+		{
+			System.out.println("Usage: java -cp bin/RankLib.jar ciir.umass.edu.features.FeatureManager <Params>");
+			System.out.println("Params:");
+			System.out.println("\t-input <file>\t\tSource data (ranked lists)");
+			System.out.println("\t-output <dir>\t\tThe output directory");
+			
+			System.out.println("");
+			System.out.println("  [+] Shuffling");
+			System.out.println("\t-shuffle\t\tCreate a copy of the input file in which the ordering of all ranked lists (e.g. queries) is randomized.");
+			System.out.println("\t\t\t\t(the order among objects (e.g. documents) within each ranked list is certainly unchanged).");
+			
+			//System.out.println("");
+			System.out.println("  [+] k-fold Partitioning (sequential split)");
+			System.out.println("\t-k <fold>\t\tThe number of folds");
+			System.out.println("\t[ -tvs <x \\in [0..1]> ] Train-validation split ratio (x)(1.0-x)");
+			
+			System.out.println("");
+			System.out.println("  NOTE: If both -shuffle and -k are specified, the input data will be shuffled and then sequentially partitioned.");
+			System.out.println("");
+			return;
+		}
+		
+		for(int i=0;i<args.length;i++)
+		{
+			if (args[i].equalsIgnoreCase ("-input"))
+				rankingFiles.add(args[++i]);
+			else if (args[i].equalsIgnoreCase ("-k"))
+				nFold = Integer.parseInt(args[++i]);
+			else if (args[i].equalsIgnoreCase ("-shuffle"))
+				shuffle = true;
+			else if (args[i].equalsIgnoreCase ("-tvs"))
+				tvs = Float.parseFloat(args[++i]);
+			else if (args[i].equalsIgnoreCase ("-output"))
+				outputDir = FileUtils.makePathStandard(args[++i]);
+		}		
 	
-	public FeatureManager()
-	{
-		featureMap.put("IDF-SUM", 1);
-		featureMap.put("IDF-STD", 2);
-		featureMap.put("IDF-MMRATIO", 3);
-		featureMap.put("IDF-MAX", 4);
-		featureMap.put("IDF-MEAN", 5);
-		featureMap.put("IDF-GEOMEAN", 6);
-		featureMap.put("IDF-HARMEAN", 7);
-		featureMap.put("IDF-STDMEANRATIO", 8);
-		
-		featureMap.put("SCQ-SUM", 9);
-		featureMap.put("SCQ-STD", 10);
-		featureMap.put("SCQ-MMRATIO", 11);
-		featureMap.put("SCQ-MAX", 12);
-		featureMap.put("SCQ-MEAN", 13);
-		featureMap.put("SCQ-GEOMEAN", 14);
-		featureMap.put("SCQ-HARMEAN", 15);
-		featureMap.put("SCQ-STDMEANRATIO", 16);
-		
-		featureMap.put("ICTF-SUM", 17);
-		featureMap.put("ICTF-STD", 18);
-		featureMap.put("ICTF-MMRATIO", 19);
-		featureMap.put("ICTF-MAX", 20);
-		featureMap.put("ICTF-MEAN", 21);
-		featureMap.put("ICTF-GEOMEAN", 22);
-		featureMap.put("ICTF-HARMEAN", 23);
-		featureMap.put("ICTF-STDMEANRATIO", 24);
-		
-		featureMap.put("SIM-CLARITY", 25);
-		
-		featureMap.put("QSCOPE", 26);
-		featureMap.put("MI", 27);
-		
-		featureMap.put("CLARITY-5", 28);
-		featureMap.put("CLARITY-10", 29);
-		featureMap.put("CLARITY-50", 30);
-		featureMap.put("CLARITY-100", 31);
-		featureMap.put("CLARITY-500", 32);
-		
-		featureMap.put("QF-5", 33);
-		featureMap.put("QF-10", 34);
-		featureMap.put("QF-50", 35);
-		featureMap.put("QF-100", 36);
-		
-		featureMap.put("WIG-5", 37);
-		featureMap.put("WIG-10", 38);
-		featureMap.put("WIG-50", 39);
-		featureMap.put("WIG-100", 40);
-		featureMap.put("WIG-500", 41);
+		if(shuffle || nFold > 0)
+		{
+			List<RankList> samples = readInput(rankingFiles);
+
+			if(samples.size() == 0)
+			{
+				System.out.println("Error: The input file is empty.");
+				return;
+			}
+			
+			String fn = FileUtils.getFileName(rankingFiles.get(0));
+
+			if(shuffle)
+			{
+				fn +=  ".shuffled";
+				System.out.print("Shuffling... ");
+				Collections.shuffle(samples);
+				System.out.println("[Done]");
+				System.out.print("Saving... ");
+				FeatureManager.save(samples, outputDir + fn);
+				System.out.println("[Done]");
+			}
+
+			if(nFold > 0)
+			{
+				List<List<RankList>> trains = new ArrayList<>();
+				List<List<RankList>> tests = new ArrayList<>();
+				List<List<RankList>> valis = new ArrayList<>();
+				System.out.println("Partitioning... ");
+				prepareCV(samples, nFold, tvs, trains, valis, tests);
+				System.out.println("[Done]");
+
+				try{
+					for(int i=0;i<trains.size();i++)
+					{
+						System.out.print("Saving fold " + (i+1) + "/" + nFold + "... ");
+						save(trains.get(i), outputDir + "f" + (i+1) + ".train." + fn);
+						save(tests.get(i), outputDir + "f" + (i+1) + ".test." + fn);
+						if(tvs > 0)
+							save(valis.get(i), outputDir + "f" + (i+1) + ".validation." + fn);
+						System.out.println("[Done]");
+					}					
+				}
+				catch(Exception ex)
+				{
+					throw RankLibError.create("Cannot save partition data.\n" +
+							"Occured in FeatureManager::main(): ", ex);
+				}
+			}
+		}
 	}
 	
+
 	/**
-	 * Read feature data.
-	 * @param fn Feature data file
-	 * @param qids [output] List of objects found in the feature file.
+	 * Read a set of rankings from a single file.
+	 * @param inputFile
 	 * @return
 	 */
-	public List<RankList> read(String fn)
+	public static List<RankList> readInput(String inputFile)
 	{
-		return read(fn, false, false);
+		return readInput(inputFile, false, false);
 	}
-	public List<RankList> read(String fn, boolean letor, boolean mustHaveRelDoc)
+
+
+	/**
+	 * Read a set of rankings from a single file.
+	 * @param inputFile
+	 * @param mustHaveRelDoc
+	 * @param useSparseRepresentation
+	 * @return
+	 */
+	public static List<RankList> readInput(String inputFile, boolean mustHaveRelDoc, boolean useSparseRepresentation)	
 	{
-		List<RankList> samples = new ArrayList<RankList>();
-		Hashtable<String, Integer> ht = new Hashtable<String, Integer>();
+		List<RankList> samples = new ArrayList<>();
 		int countRL = 0;
 		int countEntries = 0;
+
 		try {
 			String content = "";
-			BufferedReader in = new BufferedReader(
-					new InputStreamReader(
-							new FileInputStream(fn), "ASCII"));
+			BufferedReader in = new BufferedReader(new InputStreamReader(new FileInputStream(inputFile), "ASCII"));
 			
 			String lastID = "";
-			//int countID = 0;
 			boolean hasRel = false;
-			RankList rl = new RankList();
+			List<DataPoint> rl = new ArrayList<>();
+
 			while((content = in.readLine()) != null)
 			{
 				content = content.trim();
 				if(content.length() == 0)
 					continue;
+
 				if(content.indexOf("#")==0)
 					continue;
 				
 				if(countEntries % 10000 == 0)
-					System.out.print("\rReading feature file [" + fn + "]: " + countRL + "... ");
+					System.out.print("\rReading feature file [" + inputFile + "]: " + countRL + "... ");
 				
-				DataPoint qp = new DataPoint(content);
+				DataPoint qp = null;
+
+				if(useSparseRepresentation)
+					qp = new SparseDataPoint(content);
+				else
+					qp = new DenseDataPoint(content);
 
 				if(lastID.compareTo("")!=0 && lastID.compareTo(qp.getID())!=0)
 				{
 					if(!mustHaveRelDoc || hasRel)
-						samples.add(rl);
-					rl = new RankList();
+						samples.add(new RankList(rl));
+					rl = new ArrayList<>();
 					hasRel = false;
 				}
 				
-				if(letor)
-					if(qp.getLabel()==2.0f)
-						qp.setLabel(3.0f);
 				if(qp.getLabel() > 0)
 					hasRel = true;
 				lastID = qp.getID();
 				rl.add(qp);
 				countEntries++;
 			}
-			if(rl.size() > 0 && (!mustHaveRelDoc || hasRel))
-				samples.add(rl);
-			in.close();
-			System.out.println("\rReading feature file [" + fn + "]... [Done.]            ");
-			System.out.println("(" + samples.size() + " ranked lists, " + countEntries + " entries read)");
-		}
-		catch(Exception ex)
-		{
-			System.out.println("Error in FeatureManager::read(): " + ex.toString());
-		}
-		return samples;
-	}
-	public List<RankList> read2(String fn, boolean letor)
-	{
-		List<RankList> samples = new ArrayList<RankList>();
-		Hashtable<String, Integer> ht = new Hashtable<String, Integer>();
-		int countRL = 0;
-		int countEntries = 0;
-		try {
-			String content = "";
-			BufferedReader in = new BufferedReader(
-					new InputStreamReader(
-							new FileInputStream(fn), "ASCII"));
-			
-			//String lastID = "";
-			//int countID = 0;
-			while((content = in.readLine()) != null)
-			{
-				content = content.trim();
-				if(content.length() == 0)
-					continue;
-				if(content.indexOf("#")==0)
-					continue;
-				
-				if(countEntries % 10000 == 0)
-					System.out.print("\rReading feature file [" + fn + "]: " + countRL + "... ");
-				
-				DataPoint qp = new DataPoint(content);
-				RankList rl = null;
-				if(ht.get(qp.getID()) == null)
-				{
-					//if(countRL >= 12000)
-					//	break;
-					rl = new RankList();
-					//rl.setID(qp.getID());
-					ht.put(qp.getID(), samples.size());
-					samples.add(rl);
-					countRL++;
-				}
-				else
-					rl = samples.get(ht.get(qp.getID()).intValue());
-				
-				if(letor)
-					if(qp.getLabel()==2.0f)
-						qp.setLabel(3.0f);
-				
-				rl.add(qp);
-				
-				countEntries++;
-			}
-			in.close();
-			System.out.println("\rReading feature file [" + fn + "]... [Done.]            ");
-			System.out.println("(" + samples.size() + " ranked lists, " + countEntries + " entries read)");
-		}
-		catch(Exception ex)
-		{
-			System.out.println("Error in FeatureManager::read(): " + ex.toString());
-		}
-		return samples;
 
-	}
-	/**
-	 * Get feature ID from its name. Note: it's 1-based.
-	 * @param fname
-	 * @return
-	 */
-	public int getFeatureID(String fname)
-	{
-		return featureMap.get(fname).intValue();
-	}
-	/**
-	 * Get feature name from its ID. Note: it's 1-based too.
-	 * @param fid
-	 * @return
-	 */
-	public String getFeatureName(int fid)
-	{
-		return fnames[fid];
-	}
-	/**
-	 * Get feature names from a description file
-	 * @param fn
-	 * @return
-	 */
-	public List<String> getFeatureNameFromFile(String fn)
-	{
-		List<String> fName = new ArrayList<String>();
-		try {
-			String content = "";
-			BufferedReader in = new BufferedReader(
-					new InputStreamReader(
-							new FileInputStream(fn), "ASCII"));
-			
-			while((content = in.readLine()) != null)
-			{
-				content = content.trim();
-				if(content.length() == 0)
-					continue;
-				if(content.indexOf("#")==0)
-					continue;
-				fName.add(content);
-			}
+			if(rl.size() > 0 && (!mustHaveRelDoc || hasRel))
+				samples.add(new RankList(rl));
+
 			in.close();
+			System.out.println("\rReading feature file [" + inputFile + "]... [Done.]            ");
+			System.out.println("(" + samples.size() + " ranked lists, " + countEntries + " entries read)");
 		}
 		catch(Exception ex)
 		{
-			System.out.println(ex.toString());
+			throw RankLibError.create("Error in FeatureManager::readInput(): ", ex);
 		}
-		return fName;
+		return samples;
 	}
+
+
 	/**
-	 * Get feature id(s) from a description file
-	 * @param fn
+	 * Read sets of rankings from multiple files. Then merge them altogether into a single ranking.
+	 * @param inputFiles
 	 * @return
 	 */
-	public int[] getFeatureIDFromFile(String fn)
+	public static List<RankList> readInput(List<String> inputFiles)	
 	{
-		if(fn.compareTo("")==0)
-			return null;
-		List<String> l = getFeatureNameFromFile(fn);
-		int[] fv = new int[l.size()];
-		for(int i=0;i<l.size();i++)
-			fv[i] = Integer.parseInt(l.get(i));
-		return fv;
+		List<RankList> samples = new ArrayList<>();
+
+		for(int i=0;i<inputFiles.size();i++)
+		{
+			List<RankList> s = readInput(inputFiles.get(i), false, false);
+			samples.addAll(s);
+		}
+		return samples;
+	}
+
+
+	/**
+	 * Read features specified in an input feature file. Expecting one feature per line. 
+	 * @param featureDefFile
+	 * @return
+	 */
+	public static int[] readFeature(String featureDefFile)
+	{
+		int[] features = null;
+		List<String> fids = new ArrayList<>();
+
+		try (BufferedReader in = new BufferedReader(new InputStreamReader(new FileInputStream(featureDefFile)))) {
+			String content = "";
+
+			while((content = in.readLine()) != null)
+			{
+				content = content.trim();
+
+				if(content.length() == 0)
+					continue;
+
+				if(content.indexOf("#")==0)
+					continue;				
+
+				fids.add(content.split("\t")[0].trim());
+			}
+			in.close();
+			features = new int[fids.size()];
+
+			for(int i=0;i<fids.size();i++)
+				features[i] = Integer.parseInt(fids.get(i));
+		}
+		catch(IOException ex)
+		{
+			throw RankLibError.create("Error in FeatureManager::readFeature(): ", ex);
+		}
+		return features;
+	}
+
+
+	/**
+	 * Obtain all features present in a sample set. 
+	 * Important: If your data (DataPoint objects) is loaded by RankLib (e.g. command-line use) or its APIs, there 
+         *              is nothing to watch out for.
+	 *            If you create the DataPoint objects yourself, make sure DataPoint.featureCount correctly reflects
+         *              the total number features present in your dataset.
+	 * @param samples
+	 * @return
+	 */
+	public static int[] getFeatureFromSampleVector(List<RankList> samples)
+	{
+		if(samples.size() == 0)
+		{
+			throw RankLibError.create("Error in FeatureManager::getFeatureFromSampleVector(): There are no training samples.");
+		}
+
+		int fc = DataPoint.getFeatureCount();
+		int[] features = new int[fc];
+
+		for(int i=1;i<=fc;i++)
+			features[i-1] = i;
+
+		return features;
+	}
+
+
+	/**
+	 * Split the input sample set into k chunks (folds) of roughly equal size and create train/test data for each fold.
+	 * Note that NO randomization is done. If you want to randomly split the data, make sure that you randomize the order 
+	 * in the input samples prior to calling this function. 
+	 * @param samples
+	 * @param nFold
+	 * @param trainingData
+	 * @param testData
+	 */
+	public static void prepareCV(List<RankList> samples, int nFold, List<List<RankList>> trainingData, List<List<RankList>> testData)
+	{
+		prepareCV(samples, nFold, -1, trainingData, null, testData);
+	}
+
+
+	/**
+	 * Split the input sample set into k chunks (folds) of roughly equal size and create train/test data for each fold. Then it further splits
+	 * the training data in each fold into train and validation. Note that NO randomization is done. If you want to randomly split the data,  
+	 * make sure that you randomize the order in the input samples prior to calling this function. 
+	 * @param samples
+	 * @param nFold
+	 * @param tvs Train/validation split ratio
+	 * @param trainingData
+	 * @param validationData
+	 * @param testData
+	 */
+	public static void prepareCV(List<RankList> samples, int nFold, float tvs, 
+                                     List<List<RankList>> trainingData, List<List<RankList>> validationData,
+                                     List<List<RankList>> testData)
+	{
+		List<List<Integer>> trainSamplesIdx = new ArrayList<List<Integer>>();
+		int size = samples.size()/nFold;
+		int start = 0;
+		int total = 0;
+
+		for(int f=0;f<nFold;f++)
+		{
+			List<Integer> t = new ArrayList<>();
+			for(int i=0;i<size && start+i<samples.size();i++)
+				t.add(start+i);
+			trainSamplesIdx.add(t);
+			total += t.size();
+			start += size;
+		}		
+
+		for(;total<samples.size();total++)
+			trainSamplesIdx.get(trainSamplesIdx.size()-1).add(total);
+		
+		for(int i=0;i<trainSamplesIdx.size();i++)
+		{
+			System.out.print("\rCreating data for fold-" + (i+1) + "...");
+			List<RankList> train = new ArrayList<>();
+			List<RankList> test = new ArrayList<>();
+			List<RankList> vali = new ArrayList<>();
+
+			//train-test split
+			List<Integer> t = trainSamplesIdx.get(i);
+
+			for(int j=0;j<samples.size();j++)
+			{
+				if(t.contains(j))
+					test.add(new RankList(samples.get(j)));
+				else
+					train.add(new RankList(samples.get(j)));				
+			}
+
+			//train-validation split if specified
+			if(tvs > 0)
+			{
+				int validationSize = (int)(train.size()*(1.0-tvs));
+				for(int j=0;j<validationSize;j++)
+				{
+					vali.add(train.get(train.size()-1));
+					train.remove(train.size()-1);
+				}
+			}
+
+			//save them 
+			trainingData.add(train);
+			testData.add(test);
+
+			if(tvs > 0)
+				validationData.add(vali);
+		}
+		System.out.println("\rCreating data for " + nFold + " folds... [Done]            ");
+
+		printQueriesForSplit("Train", trainingData);
+		printQueriesForSplit("Validate", validationData);
+		printQueriesForSplit("Test", testData);
+	}
+
+
+	public static void printQueriesForSplit(String name, List<List<RankList>> split) {
+		for (int i = 0; i < split.size(); i++) {
+			List<RankList> rankLists = split.get(i);
+			System.out.print(name+"["+i+"]=");
+
+			for (RankList rankList : rankLists) {
+				System.out.print(" \""+rankList.getID()+"\"");
+			}
+			System.out.println();
+		}
+	}
+
+
+	/**
+	 * Split the input sample set into 2 chunks: one for training and one for either validation or testing
+	 * @param samples
+	 * @param percentTrain The percentage of data used for training
+	 * @param trainingData
+	 * @param testData
+	 */
+	public static void prepareSplit(List<RankList> samples, double percentTrain, List<RankList> trainingData, List<RankList> testData)
+	{
+		int size = (int) (samples.size() * percentTrain);
+
+		for(int i=0; i<size; i++)
+			trainingData.add(new RankList(samples.get(i)));
+
+		for(int i=size; i<samples.size(); i++)
+			testData.add(new RankList(samples.get(i)));
+	}	
+
+
+	/**
+	 * Save a sample set to file
+	 * @param samples
+	 * @param outputFile
+	 */
+	public static void save(List<RankList> samples, String outputFile)
+	{
+		try{
+			BufferedWriter out = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(outputFile)));
+
+			for (RankList sample : samples) save(sample, out);
+			out.close();	
+		}
+		catch(Exception ex)
+		{
+			throw RankLibError.create("Error in FeatureManager::save(): ", ex);
+		}
+	}
+
+
+	/**
+	 * Write a ranked list to a file object.
+	 * @param r
+	 * @param out
+	 * @throws Exception
+	 */
+	private static void save(RankList r, BufferedWriter out) throws Exception
+	{
+		for(int j=0;j<r.size();j++)
+		{
+			out.write(r.get(j).toString());
+			out.newLine();
+		}
 	}
 }

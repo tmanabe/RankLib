@@ -8,6 +8,10 @@ public class APIAScorer extends MetricScorer {
     {
         this.k = 0;//consider the whole list
     }
+    public MetricScorer copy()
+    {
+        return new APIAScorer();
+    }
     public double score(RankList rl)
     {
         double cap = 0.0;
@@ -37,11 +41,14 @@ public class APIAScorer extends MetricScorer {
     }
     public MetricScorer clone()
     {
-        super.clone();
         return new APIAScorer();
     }
     public String name()
     {
         return "MAPIA";
+    }
+
+    public double[][] swapChange(RankList rl) {
+        return null;  // FIXME
     }
 }

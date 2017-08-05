@@ -1,5 +1,5 @@
 /*===============================================================================
- * Copyright (c) 2010-2012 University of Massachusetts.  All Rights Reserved.
+ * Copyright (c) 2010-2015 University of Massachusetts.  All Rights Reserved.
  *
  * Use of the RankLib package is subject to the terms of the software license set 
  * forth in the LICENSE file included with this software, and also available at
@@ -9,20 +9,12 @@
 
 package ciir.umass.edu.utilities;
 
-import java.io.BufferedInputStream;
-import java.io.BufferedOutputStream;
-import java.io.BufferedReader;
-import java.io.BufferedWriter;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.OutputStreamWriter;
+import java.io.*;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.GZIPOutputStream;
+
 
 /**
  * This class provides some file processing utilities such as read/write files, obtain files in a
@@ -40,7 +32,8 @@ public class FileUtils {
 	public static String read(String filename, String encoding) 
 	{
 		BufferedReader in;
-		String content = "";
+		//String content = "";
+                StringBuffer content = new StringBuffer();
 		try{
 			in = new BufferedReader(
 	            new InputStreamReader(
@@ -49,15 +42,18 @@ public class FileUtils {
 			int numRead=-1;
 			while((numRead=in.read(newContent)) != -1)
 			{
-				content += new String(newContent, 0, numRead);
+			    //content += new String(newContent, 0, numRead);
+                            content.append (new String(newContent, 0, numRead));
 			}
 			in.close();
 		}
 		catch(Exception e)
 		{
-			content = "";
+		    //content = "";
+                    content = new StringBuffer();
 		}
-		return content;
+		//return content;
+                return content.toString();
 	}
 	
 	public static List<String> readLine(String filename, String encoding) 
@@ -80,7 +76,7 @@ public class FileUtils {
 		}
 		catch(Exception ex)
 		{
-			System.out.println(ex.toString());
+			throw RankLibError.create(ex);
 		}
 		return lines;
 	}
@@ -150,30 +146,18 @@ public class FileUtils {
 	 */
 	public static void copyFile(String srcFile, String dstFile)
 	{
-		try {
-		    FileInputStream fis  = new FileInputStream(new File(srcFile));
-		    FileOutputStream fos = new FileOutputStream(new File(dstFile));
-		    try
-		    {
-		    	byte[] buf = new byte[40960];
-		    	int i = 0;
-		    	while ((i = fis.read(buf)) != -1) {
-		    		fos.write(buf, 0, i);
-		    	}
-		    } 
-		    catch (Exception e)
-		    {
-		    	System.out.println("Error in FileUtils.copyFile: " + e.toString());
-		    }
-		    finally
-		    {
-		    	if (fis != null) fis.close();
-		    	if (fos != null) fos.close();
-		    }
-		}
-		catch(Exception ex)
+		try (FileInputStream fis  = new FileInputStream(new File(srcFile));
+				 FileOutputStream fos = new FileOutputStream(new File(dstFile)))
 		{
-			System.out.println("Error in FileUtils.copyFile: " + ex.toString());
+			byte[] buf = new byte[40960];
+			int i = 0;
+			while ((i = fis.read(buf)) != -1) {
+				fos.write(buf, 0, i);
+			}
+		}
+		catch (IOException e)
+		{
+			throw RankLibError.create("Error in FileUtils.copyFile: ", e);
 		}
 	}
 	/**
@@ -184,8 +168,7 @@ public class FileUtils {
 	 */
 	public static void copyFiles(String srcDir, String dstDir, List<String> files)
 	{
-		for(int i=0;i<files.size();i++)
-			FileUtils.copyFile(srcDir+files.get(i), dstDir+files.get(i));
+		for (String file : files) FileUtils.copyFile(srcDir + file, dstDir + file);
 	}
 	public static final int BUF_SIZE = 51200;
     /**
@@ -278,4 +261,23 @@ public class FileUtils {
 		}
 		return 1;
     }
+
+	public static String getFileName(String pathName)
+	{
+		int idx1 = pathName.lastIndexOf("/");
+		int idx2 = pathName.lastIndexOf("\\");
+		int idx = (idx1 > idx2)?idx1:idx2;
+		return pathName.substring(idx+1);
+	}
+	public static String makePathStandard(String directory)
+	{
+		String dir = directory;
+		char c = dir.charAt(dir.length()-1);
+		if(c != '/' && c != '\\')
+                    //- I THINK we want File.separator (/ or \) instead of 
+                    //  File.pathSeparator (: or ;) here.  Maybe needed for Analyzer?
+		    //dir += File.pathSeparator;
+		    dir += File.separator;
+		return dir;
+	}
 }

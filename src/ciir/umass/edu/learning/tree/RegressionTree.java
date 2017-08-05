@@ -28,7 +28,7 @@ public class RegressionTree {
 	protected List<Split> leaves = null;
 	
 	protected DataPoint[] trainingSamples = null;
-	protected float[] trainingLabels = null;
+	protected double[] trainingLabels = null;
 	protected int[] features = null;
 	protected float[][] thresholds = null;
 	protected int[] index = null;
@@ -39,7 +39,7 @@ public class RegressionTree {
 		this.root = root;
 		leaves = root.leaves();
 	}
-	public RegressionTree(int nLeaves, DataPoint[] trainingSamples, float[] labels, FeatureHistogram hist, int minLeafSupport)
+	public RegressionTree(int nLeaves, DataPoint[] trainingSamples, double[] labels, FeatureHistogram hist, int minLeafSupport)
 	{
 		this.nodes = nLeaves;
 		this.trainingSamples = trainingSamples;
@@ -57,9 +57,14 @@ public class RegressionTree {
 	public void fit()
 	{
 		List<Split> queue = new ArrayList<Split>();
-		root = split(new Split(index, hist, Float.MAX_VALUE, 0));
-		insert(queue, root.getLeft());
-		insert(queue, root.getRight());
+		root = new Split(index, hist, Float.MAX_VALUE, 0);
+		root.setRoot(true);
+
+		// Ensure inserts occur only after successful splits
+		if(root.split(trainingLabels, minLeafSupport)) {
+	              insert(queue, root.getLeft());
+		      insert(queue, root.getRight());
+		}
 
 		int taken = 0;
 		while( (nodes == -1 || taken + queue.size() < nodes) && queue.size() > 0)
@@ -67,35 +72,29 @@ public class RegressionTree {
 			Split leaf = queue.get(0);
 			queue.remove(0);
 			
-			Split s = split(leaf);
-			if(s == null)//unsplitable (i.e. variance(s)==0; or after-split variance is higher than before; or #samples < minLeafSupport)
+			if(leaf.getSamples().length < 2 * minLeafSupport)
+			{
+				taken++;
+				continue;
+			}
+			
+			if(!leaf.split(trainingLabels, minLeafSupport))//unsplitable (i.e. variance(s)==0; or after-split variance is higher than before)
 				taken++;
 			else
 			{
-				insert(queue, s.getLeft());
-				insert(queue, s.getRight());
+				insert(queue, leaf.getLeft());
+				insert(queue, leaf.getRight());
 			}			
 		}
 		leaves = root.leaves();
 	}
-	/**
-	 * Find the best <feature, threshold> that split the set of samples into two subsets with the smallest S (mean squared error):
-	 * 		S = sum_{samples put to the left}^{(label - muLeft)^2} + sum_{samples put to the right}^{(label - muRight)^2}
-	 * and split the input tree node using this <feature, threshold> pair.
-	 * @param 
-	 * @return
-	 */
-	protected Split split(Split s)
-	{
-		FeatureHistogram h = s.hist;
-		return h.findBestSplit(s, trainingSamples, trainingLabels, minLeafSupport);
-	}
+	
 	/**
 	 * Get the tree output for the input sample
 	 * @param dp
 	 * @return
 	 */
-	public float eval(DataPoint dp)
+	public double eval(DataPoint dp)
 	{
 		return root.eval(dp);
 	}
@@ -158,20 +157,5 @@ public class RegressionTree {
 		}
 		ls.add(i, s);
 	}
-	
-	//Multi-thread processing
-	class SplitWorker implements Runnable {
-		RegressionTree tree = null;
-		Split s = null;
-		Split ret = null;
-		SplitWorker(RegressionTree tree, Split s)
-		{
-			this.tree = tree;
-			this.s = s;
-		}		
-		public void run()
-		{
-			ret = split(s);
-		}
-	}
+
 }

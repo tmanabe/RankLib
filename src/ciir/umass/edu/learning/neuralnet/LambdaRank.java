@@ -13,6 +13,7 @@ import java.util.List;
 
 import ciir.umass.edu.learning.RankList;
 import ciir.umass.edu.learning.Ranker;
+import ciir.umass.edu.metric.MetricScorer;
 
 public class LambdaRank extends RankNet {
 	//Parameters
@@ -25,9 +26,9 @@ public class LambdaRank extends RankNet {
 	{
 		
 	}
-	public LambdaRank(List<RankList> samples, int [] features)
+	public LambdaRank(List<RankList> samples, int [] features, MetricScorer scorer)
 	{
-		super(samples, features);
+		super(samples, features, scorer);
 	}
 	protected int[][] batchFeedForward(RankList rl)
 	{
@@ -127,7 +128,7 @@ public class LambdaRank extends RankNet {
 		lastError = error;
 	}
 	
-	public Ranker clone()
+	public Ranker createNew()
 	{
 		return new LambdaRank();
 	}
