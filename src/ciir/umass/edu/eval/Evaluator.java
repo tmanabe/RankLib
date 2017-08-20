@@ -62,7 +62,7 @@ public class Evaluator {
 		String validationFile = "";
 		String testFile = "";
 		List<String> testFiles = new ArrayList<>();
-		int rankerType = 9;
+		int rankerType = 10;
 		String trainMetric = "MAPIA";
 		String testMetric = "";
 		Evaluator.normalize = false;

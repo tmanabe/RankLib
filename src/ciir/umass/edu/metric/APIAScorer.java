@@ -26,7 +26,9 @@ public class APIAScorer extends MetricScorer {
             double ap = 0.0;
             int c = 0;
             for (int r = 1; r <= rl.size(); r++) {
-                if (0.0 < rl.get(r - 1).getLabels()[i])//relevant
+                DataPoint dp = rl.get(r - 1);
+                if (dp == null) continue;
+                if (0.0 < dp.getLabels()[i])  // Relevant
                 {
                     c++;
                     ap += ((double) c) / r;

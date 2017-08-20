@@ -255,6 +255,10 @@ public class BM25F extends CoorAscent {
         }
  		return score;
 	}
+    public Ranker createNew()
+    {
+        return new BM25F();
+    }
 	public Ranker clone() throws CloneNotSupportedException
 	{
 	    super.clone();
