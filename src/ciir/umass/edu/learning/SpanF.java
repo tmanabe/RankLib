@@ -9,11 +9,13 @@ import java.util.*;
  * @author tmanabe
  *
  * This class implements the Span model proposed by Song et al. [1] then
- * naturally extended for multiple fields by tmanabe, and
+ * naturally extended for multiple fields by tmanabe [2], and
  * its optimization with the method known as Coordinate Ascent.
  *
  * [1] R. Song, M. J. Taylor, J.-R. Wen, H.-W. Hon, and Y. Yu. Viewing term
  * proximity from a different perspective. In ECIR, pages 346–357, 2008.
+ * [2] T. Manabe and S. Fujita. A Short Note on Proximity-based Scoring of
+ * Documents with Multiple Fields. CoRR, arXiv:1709.03260, 2017.
  *
  * You must sort features in the following order where
  * k means |keywords|, f |fields|,
