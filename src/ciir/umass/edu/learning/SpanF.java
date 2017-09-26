@@ -322,7 +322,16 @@ public class SpanF extends CoorAscent {
         }
  		return score;
 	}
-	public String name()
+    public Ranker createNew()
+    {
+        return new SpanF();
+    }
+    public Ranker clone() throws CloneNotSupportedException
+    {
+        super.clone();
+        return new SpanF();
+    }
+    public String name()
 	{
 		return "SpanF";
 	}
