@@ -24,15 +24,16 @@ public class ReciprocalRankScorer extends MetricScorer {
 	}
 	public double score(RankList rl)
 	{
+		int size = (rl.size() > k) ? k : rl.size();
 		int firstRank = -1;
-		for(int i=0;i<rl.size()&&(firstRank==-1);i++)
+		for(int i=0;i<size && (firstRank==-1);i++)
 		{
 			if(rl.get(i).getLabel() > 0.0)//relevant
 				firstRank = i+1;
 		}
 		return (firstRank==-1)?0:(1.0f/firstRank);
 	}
-	public MetricScorer clone()
+	public MetricScorer copy()
 	{
 		return new ReciprocalRankScorer();
 	}

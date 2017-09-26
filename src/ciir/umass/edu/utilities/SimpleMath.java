@@ -13,17 +13,22 @@ package ciir.umass.edu.utilities;
  * @author vdang
  */
 public class SimpleMath {
+	
+	private static double LOG2 = Math.log(2);
+	private static double LOG10 = Math.log(10);
+	private static double LOGE = Math.log(Math.E);
+	
 	public static double logBase2(double value)
 	{
-		return Math.log(value)/Math.log(2);
+		return Math.log(value)/LOG2;
 	}
 	public static double logBase10(double value)
 	{
-		return Math.log(value)/Math.log(10);
+		return Math.log(value)/LOG10;
 	}
 	public static double ln(double value)
 	{
-		return Math.log(value)/Math.log(Math.E);
+		return Math.log(value)/LOGE;
 	}
 	public static int min(int a, int b)
 	{

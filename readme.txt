@@ -1,9 +1,39 @@
-Author:	Van Dang (vdang@cs.umass.edu)
-Date:		July, 2012.
-Version:	2.1
+Date:		December, 2013.
+Version:	2.3
 ======================================
 
 WHAT'S NEW
+- [bugfix] RankLib crashes when #features < #threads with some algorithms.
+- [bugfix] Normalization issue with RankBoost (the command "-test <test-data> -load <RB-model-file> -norm zscore/sum" incorrectly normalizes the test data).
+- [bugfix] Reciprocal rank is always measured off the entire ranked list, regardless of the specified cut-off point.
+- [bugfix] MAP change when swaping two documents in a ranked list is incorrect. This only affects LambdaMART trained with MAP. It doesn't seem to have any significant impact on model effectiveness though.
+- Slight efficiency improvement.
+- RankLib can now be used to evaluate (well, kind of) models trained using other LTR software packages (e.g. SVM-Rank)
+- Siddhartha Bagaria's patch for sparse dataset is included but not yet fully enabled since it's not thread-safe.
+- Linear regression (L2 norm) should now work properly
+
+========================
+v 2.2
+------
+- Proper support for k-fold cross-validation (cv models can now be... saved!!! support random partitions in addition to sequential partitions)
+- Help compare different models (i.e. how much gain? win/loss? statistically significant? improvement/hurt analysis).
+- Add "linear" (Min/Max) feature normalization. ( q->D={d1,d2,...,d_n}; F={f1,f2,...,fm}; fk_di = (fk_di - min_fk_all_d_in_D) / (max_fk_all_d_in_D - min_fk_all_d_in_D) ).
+- Coordinate Ascent now takes into account validation data just like all other algorithms (though Coordinate Ascent usually works well without validation data)
+- Default value for #nRestart (Coordinate Ascent) is changed to 5 (increasing it might give better results, but training will take longer)
+- [Bugfix] Feature normalization: RankLib sometimes doesn't do normalization even when it is told to do so.
+- [Bugfix] Certain combinations of #features/#samples and #cpu-cores screwed up my multi-threaded implementatin of LambdaMART, causing the algorithm to underperform.
+- [Bugfix] LambdaMART's occasional crashes.
+- [Bugfix] RankLib crashes if the comment text associated with each feature vector contains additional "#" (other than the "#" used to specify a comment)
+- Internal class/package re-arrangement (expect minor code change if you're using RankLib codes programatically)
+
+(personal reminder)
+- [Beta] Sparse feature vector: work properly, but its benefit has NOT been evaluated (slow down vs. memory gain? -- might be useless at the moment!)
+- [Beta] Added L2 linear regression (NOT yet tested).
+
+
+========================
+v 2.1
+------
 - Add ListNet.
 - Add Random Forest.
 - With little manual work, it can do BagBoo/Bagging LambaMART too.

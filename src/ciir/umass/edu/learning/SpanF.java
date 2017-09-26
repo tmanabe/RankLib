@@ -1,5 +1,6 @@
 package ciir.umass.edu.learning;
 
+import ciir.umass.edu.metric.MetricScorer;
 import ciir.umass.edu.utilities.MergeSorter;
 import ciir.umass.edu.utilities.SimpleMath;
 
@@ -62,9 +63,9 @@ public class SpanF extends CoorAscent {
     {
 
     }
-    SpanF(List<RankList> samples, int[] features)
+    SpanF(List<RankList> samples, int[] features, MetricScorer scorer)
     {
-        super(samples, features);
+        super(samples, features, scorer);
     }
 	public void init()
     {
@@ -278,8 +279,16 @@ public class SpanF extends CoorAscent {
                 }
             }
         }
-		int[] idx = MergeSorter.sort(score, false);
-		return new RankList(rl, idx);
+        int[] idx = MergeSorter.sort(score, false);
+        int effectiveCount = 0;
+        for (; effectiveCount < idx.length; ++effectiveCount) {
+            if (Double.isInfinite(score[idx[effectiveCount]])) {
+                break;
+            }
+        }
+        int[] effectiveIdx = new int[effectiveCount];
+        System.arraycopy(idx, 0, effectiveIdx, 0, effectiveIdx.length);
+        return new RankList(rl, effectiveIdx);
 	}
 	public double eval(DataPoint p)
     {
@@ -312,11 +321,6 @@ public class SpanF extends CoorAscent {
             score += keyword_score / (weight[0] + keyword_score) * hs[j];
         }
  		return score;
-	}
-	public Ranker clone()
-	{
-	    super.clone();
-	    return new SpanF();
 	}
 	public String name()
 	{

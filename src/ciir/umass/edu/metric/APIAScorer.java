@@ -8,6 +8,10 @@ public class APIAScorer extends MetricScorer {
     {
         this.k = 0;//consider the whole list
     }
+    public MetricScorer copy()
+    {
+        return new APIAScorer();
+    }
     public double score(RankList rl)
     {
         double cap = 0.0;
@@ -22,7 +26,9 @@ public class APIAScorer extends MetricScorer {
             double ap = 0.0;
             int c = 0;
             for (int r = 1; r <= rl.size(); r++) {
-                if (0.0 < rl.get(r - 1).getLabels()[i])//relevant
+                DataPoint dp = rl.get(r - 1);
+                if (dp == null) continue;
+                if (0.0 < dp.getLabels()[i])  // Relevant
                 {
                     c++;
                     ap += ((double) c) / r;
@@ -37,11 +43,14 @@ public class APIAScorer extends MetricScorer {
     }
     public MetricScorer clone()
     {
-        super.clone();
         return new APIAScorer();
     }
     public String name()
     {
         return "MAPIA";
+    }
+
+    public double[][] swapChange(RankList rl) {
+        return null;  // FIXME
     }
 }

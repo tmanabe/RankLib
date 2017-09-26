@@ -2,8 +2,11 @@ package ciir.umass.edu.learning;
 
 import java.util.*;
 
+import ciir.umass.edu.metric.MetricScorer;
 import ciir.umass.edu.utilities.MergeSorter;
 import ciir.umass.edu.utilities.SimpleMath;
+
+import javax.xml.crypto.Data;
 
 /**
  * @author tmanabe
@@ -31,9 +34,9 @@ public class BM25F extends CoorAscent {
     {
 
     }
-    BM25F(List<RankList> samples, int[] features)
+    BM25F(List<RankList> samples, int[] features, MetricScorer scorer)
     {
-        super(samples, features);
+        super(samples, features, scorer);
     }
 	public void init()
     {
@@ -227,7 +230,15 @@ public class BM25F extends CoorAscent {
             }
         }
 		int[] idx = MergeSorter.sort(score, false);
-		return new RankList(rl, idx);
+        int effectiveCount = 0;
+        for (; effectiveCount < idx.length; ++effectiveCount) {
+            if (Double.isInfinite(score[idx[effectiveCount]])) {
+                break;
+            }
+        }
+        int[] effectiveIdx = new int[effectiveCount];
+        System.arraycopy(idx, 0, effectiveIdx, 0, effectiveIdx.length);
+		return new RankList(rl, effectiveIdx);
 	}
 	public double eval(DataPoint p)
     {
@@ -244,7 +255,11 @@ public class BM25F extends CoorAscent {
         }
  		return score;
 	}
-	public Ranker clone()
+    public Ranker createNew()
+    {
+        return new BM25F();
+    }
+	public Ranker clone() throws CloneNotSupportedException
 	{
 	    super.clone();
 	    return new BM25F();

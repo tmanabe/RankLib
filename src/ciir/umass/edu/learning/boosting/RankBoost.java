@@ -9,18 +9,18 @@
 
 package ciir.umass.edu.learning.boosting;
 
-import java.io.BufferedReader;
-import java.io.FileInputStream;
-import java.io.InputStreamReader;
-import java.util.ArrayList;
-import java.util.Hashtable;
-import java.util.List;
-
 import ciir.umass.edu.learning.DataPoint;
 import ciir.umass.edu.learning.RankList;
 import ciir.umass.edu.learning.Ranker;
+import ciir.umass.edu.metric.MetricScorer;
 import ciir.umass.edu.utilities.MergeSorter;
+import ciir.umass.edu.utilities.RankLibError;
 import ciir.umass.edu.utilities.SimpleMath;
+
+import java.io.BufferedReader;
+import java.io.StringReader;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * @author vdang
@@ -38,7 +38,6 @@ public class RankBoost extends Ranker {
 	protected List<List<int[]>> sortedSamples = new ArrayList<List<int[]>>();
 	protected double[][] thresholds = null;//candidate values for weak rankers' threshold, selected from feature values
 	protected int[][] tSortedIdx = null;//sorted (descend) index for @thresholds
-	protected Hashtable<Integer, Integer> usedFeatures = new Hashtable<Integer, Integer>();
 	
 	protected List<RBWeakRanker> wRankers = null;//best weak rankers at each round
 	protected List<Double> rWeight = null;//alpha (weak rankers' weight)
@@ -55,9 +54,9 @@ public class RankBoost extends Ranker {
 	{
 		
 	}
-	public RankBoost(List<RankList> samples, int[] features)
+	public RankBoost(List<RankList> samples, int[] features, MetricScorer scorer)
 	{
-		super(samples, features);
+		super(samples, features, scorer);
 	}
 	
 	private int[] reorder(RankList rl, int fid)
@@ -65,8 +64,7 @@ public class RankBoost extends Ranker {
 		double[] score = new double[rl.size()];
 		for(int i=0;i<rl.size();i++)
 			score[i] = rl.get(i).getFeatureValue(fid);
-		int[] idx = MergeSorter.sort(score, false); 
-		return idx;
+		return MergeSorter.sort(score, false);
 	}
 	
 	/**
@@ -368,7 +366,7 @@ public class RankBoost extends Ranker {
 			score += rWeight.get(j) * wRankers.get(j).score(p);
 		return score;
 	}
-	public Ranker clone()
+	public Ranker createNew()
 	{
 		return new RankBoost();
 	}
@@ -387,14 +385,12 @@ public class RankBoost extends Ranker {
 		output += toString();
 		return output;
 	}
-	public void load(String fn)
+	public void loadFromString(String fullText)
 	{
 		try {
 			String content = "";
-			BufferedReader in = new BufferedReader(
-					new InputStreamReader(
-							new FileInputStream(fn), "ASCII"));
-			
+			BufferedReader in = new BufferedReader(new StringReader(fullText));
+
 			while((content = in.readLine()) != null)
 			{
 				content = content.trim();
@@ -406,8 +402,8 @@ public class RankBoost extends Ranker {
 			}
 			in.close();
 			
-			rWeight = new ArrayList<Double>();
-			wRankers = new ArrayList<RBWeakRanker>();
+			rWeight = new ArrayList<>();
+			wRankers = new ArrayList<>();
 			
 			int idx = content.lastIndexOf("#");
 			if(idx != -1)//remove description at the end of the line (if any)
@@ -433,7 +429,7 @@ public class RankBoost extends Ranker {
 		}
 		catch(Exception ex)
 		{
-			System.out.println("Error in RankBoost::load(): " + ex.toString());
+			throw RankLibError.create("Error in RankBoost::load(): ", ex);
 		}
 	}
 	public void printParameters()
