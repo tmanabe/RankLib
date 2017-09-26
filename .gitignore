@@ -1,3 +1,6 @@
+*.pptx
+target
+
 .idea
 MANIFEST.MF
 *.txt

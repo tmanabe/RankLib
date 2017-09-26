@@ -33,7 +33,20 @@ import java.util.List;
  */
 public class RankerFactory {
 
-	protected Ranker[] rFactory = new Ranker[]{new MART(), new RankBoost(), new RankNet(), new AdaRank(), new CoorAscent(), new LambdaRank(), new LambdaMART(), new ListNet(), new RFRanker(), new LinearRegRank(), new BM25F()};
+	protected Ranker[] rFactory = new Ranker[]{
+			new MART(),
+			new RankBoost(),
+			new RankNet(),
+			new AdaRank(),
+			new CoorAscent(),
+			new LambdaRank(),
+			new LambdaMART(),
+			new ListNet(),
+			new RFRanker(),
+			new LinearRegRank(),
+			new BM25F(),
+			new SpanF(),
+	};
 	protected static HashMap<String, RANKER_TYPE> map = new HashMap<String, RANKER_TYPE>();
 	
 	public RankerFactory()
@@ -49,6 +62,7 @@ public class RankerFactory {
 		map.put(createRanker(RANKER_TYPE.RANDOM_FOREST).name().toUpperCase(), RANKER_TYPE.RANDOM_FOREST);
 		map.put(createRanker(RANKER_TYPE.LINEAR_REGRESSION).name().toUpperCase(), RANKER_TYPE.LINEAR_REGRESSION);
 		map.put(createRanker(RANKER_TYPE.BM25F).name().toUpperCase(), RANKER_TYPE.BM25F);
+		map.put(createRanker(RANKER_TYPE.SPANF).name().toUpperCase(), RANKER_TYPE.SPANF);
 	}
 	public Ranker createRanker(RANKER_TYPE type)
 	{
