@@ -243,7 +243,10 @@ public class BM25F extends CoorAscent {
 	public double eval(DataPoint p)
     {
         int k = (int)p.getFeatureValue(1);
-		double score = 0.0;
+        if (f <= 0) {  // For scoring test data points
+            f = p.getLastFeature() / (k + 1) - 1;
+        }
+        double score = 0.0;
         for(int i=1; i<=k; i++) {
             double w = 0.0;
             for(int j=1; j<=f; j++) {
