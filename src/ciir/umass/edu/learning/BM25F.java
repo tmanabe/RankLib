@@ -282,4 +282,22 @@ public class BM25F extends CoorAscent {
             wids[i] = l.get(i);
         return wids;
     }
+    double getDistance(double[] w1, double[] w2)
+    {
+        assert(w1.length == w2.length);
+        double s1 = 0.0;
+        double s2 = 0.0;
+        for(int i=f+1;i<w1.length;i++)
+        {
+            s1 += Math.abs(w1[i]);
+            s2 += Math.abs(w2[i]);
+        }
+        double dist = 0.0;
+        for(int i=f+1;i<w1.length;i++)
+        {
+            double t = w1[i]/s1 - w2[i]/s2;
+            dist += t*t;
+        }
+        return (double)Math.sqrt(dist);
+    }
 }
