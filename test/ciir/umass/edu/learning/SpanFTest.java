@@ -295,4 +295,12 @@ public class SpanFTest {
             fail();
         }
     }
+    @Test
+    public void testGetDistance() {
+        SpanF spanF = new SpanF();
+        spanF.f = 2;
+        double[] regVector = {0.4, 0.55, 0.55, 0.25, 0.25, 0.3, 0.3, 1.0, 1.0};
+        double[] weights = {0.8, 0.45, 0.65, 0.15, 0.35, 0.2, 0.4, 0.5, 2.0};
+        assertEquals(Math.sqrt(0.18), spanF.getDistance(regVector, weights), 1.0e-6);
+    }
 }

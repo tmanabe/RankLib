@@ -257,4 +257,12 @@ public class BM25FTest {
             fail();
         }
     }
+    @Test
+    public void testGetDistance() {
+        BM25F bm25f = new BM25F();
+        bm25f.f = 2;
+        double[] regVector = {1.2, 0.75, 0.75, 1.0, 1.0};
+        double[] weights = {2.0, 0.0, 1.0, 0.5, 2.0};
+        assertEquals(Math.sqrt(0.18), bm25f.getDistance(regVector, weights), 1.0e-6);
+    }
 }
