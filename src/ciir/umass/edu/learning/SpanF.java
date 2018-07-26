@@ -184,6 +184,8 @@ public class SpanF extends CoorAscent {
                                 break;
                             } else if(2*f < current_weight && current_weight <= 3*f && (w < 0 || 1.0 < w)) {  // b
                                 break;
+                            } else if(3*f < current_weight && (w < 0)) {  // boost
+                                break;
                             }
 
                             weight[current_weight] = w;

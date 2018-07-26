@@ -134,6 +134,8 @@ public class BM25F extends CoorAscent {
                                 break;
                             } else if(0 < current_weight && current_weight <= f && (w < 0 || 1.0d < w)) {  // b
                                 break;
+                            } else if(f < current_weight && (w < 0)) {  // boost
+                                break;
                             }
 
                             weight[current_weight] = w;
